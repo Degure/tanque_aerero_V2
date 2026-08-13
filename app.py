@@ -11,6 +11,7 @@ import pandas as pd
 from data import (
     TANQUES, BACIAS, BOMBAS, FILTROS, ELEMENTOS, OPCIONAIS,
     EMPRESA, VENDEDORES_INICIAL, TEMPLATES, UFS_BRASIL,
+    UF_ORIGEM_PADRAO, calcular_difal,
     get_imagem_tanque, get_imagens_selecionadas,
 )
 from pdf_generator import gerar_pdf, format_brl
@@ -121,6 +122,12 @@ with col2:
     endereco = st.text_input("Endereço / Cidade", value=_cli.get("endereco", "") if _cli.get("endereco") != "—" else "")
     telefone = st.text_input("Telefone", value=_cli.get("telefone", "") if _cli.get("telefone") != "—" else "")
     email = st.text_input("E-mail", value=_cli.get("email", "") if _cli.get("email") != "—" else "")
+    uf_origem = st.selectbox(
+        "UF origem (ICMS)",
+        UFS_BRASIL,
+        index=UFS_BRASIL.index(UF_ORIGEM_PADRAO) if UF_ORIGEM_PADRAO in UFS_BRASIL else UFS_BRASIL.index("SC"),
+        help="Padrão: SC (fábrica). Altere se a saída fiscal for de outro estado.",
+    )
     uf_destino = st.selectbox(
         "UF destino (DIFAL/ICMS)",
         ["—"] + UFS_BRASIL,
@@ -509,6 +516,17 @@ margem_pct = ((total_produtos - custo_total) / total_produtos * 100) if custo_to
 comissao_valor = total_produtos * (comissao_pct / 100.0) if comissao_pct > 0 else 0.0
 primeira_parcela = parcelas_calc[0]["valor"] if parcelas_calc else 0.0
 
+# DIFAL + total estimado cliente (antes da sidebar para aparecer no resumo lateral)
+base_difal = total_produtos
+difal_info = calcular_difal(
+    base_difal,
+    uf_destino if uf_destino != "—" else "",
+    uf_origem or UF_ORIGEM_PADRAO,
+)
+valor_difal = float(difal_info.get("valor_difal") or 0)
+total_cliente_avista = total_avista + frete_valor + valor_difal
+total_cliente_prazo = total_produtos + frete_valor + valor_difal
+
 # Resumo fixo na sidebar (sempre visível)
 with st.sidebar:
     st.markdown("---")
@@ -517,6 +535,9 @@ with st.sidebar:
     st.metric("À vista", format_brl(total_avista))
     if primeira_parcela:
         st.metric("1ª parcela", format_brl(primeira_parcela))
+    if valor_difal > 0:
+        st.metric("DIFAL", format_brl(valor_difal))
+    st.metric("Total cliente (à vista+DIFAL)", format_brl(total_cliente_avista))
     if margem_pct is not None:
         st.metric("Margem", f"{margem_pct:.1f}%")
         if margem_pct < 15:
@@ -542,11 +563,37 @@ else:
     c6.metric("Margem", "—")
 c7.metric("Comissão", format_brl(comissao_valor) if comissao_valor else "—")
 
+# ----- DIFAL (já calculado acima) + totais para o cliente -----
+st.markdown("**DIFAL estimado (ICMS interestadual)**")
+st.caption(
+    "Fórmula: valor da NF × (alíquota interna do **destino** − alíquota interestadual). "
+    "Produtos nacionais. Tabela ICMS 2025 com matriz interestadual completa (27×27)."
+)
 if uf_destino and uf_destino != "—":
-    st.info(
-        f"UF destino **{uf_destino}**: se o cliente não for contribuinte de ICMS, "
-        "pode haver diferencial de alíquota (DIFAL) conforme a legislação do estado."
-    )
+    d1, d2, d3, d4 = st.columns(4)
+    d1.metric("UF", f"{uf_origem} → {uf_destino}")
+    d2.metric("Interna destino", f"{difal_info['aliquota_interna_destino']:.1f}%")
+    d3.metric("Interestadual", f"{difal_info['aliquota_interestadual']:.1f}%")
+    d4.metric("DIFAL estimado", format_brl(valor_difal))
+    if difal_info["aplica"] and valor_difal > 0:
+        st.success(
+            f"Diferença: {difal_info['diferenca_pp']:.1f} p.p. sobre base {format_brl(base_difal)}. "
+            "Orientativo — confirmar com o fiscal na NF."
+        )
+    else:
+        st.info(difal_info.get("observacao") or "Sem DIFAL para esta combinação.")
+else:
+    st.warning("Selecione a **UF destino** nos dados do cliente para calcular o DIFAL.")
+
+st.markdown("**Total estimado para o cliente**")
+t1, t2, t3 = st.columns(3)
+t1.metric("À prazo + frete + DIFAL", format_brl(total_cliente_prazo))
+t2.metric("À vista + frete + DIFAL", format_brl(total_cliente_avista))
+t3.metric("Só DIFAL", format_brl(valor_difal))
+st.caption(
+    "Composição à vista: produtos com desconto + frete + DIFAL. "
+    "Composição à prazo: produtos sem desconto + frete + DIFAL."
+)
 
 if frete_valor > 0:
     st.info(f"Frete: {format_brl(frete_valor)} → **Total geral: {format_brl(total_geral)}**")
@@ -620,6 +667,7 @@ dados_pdf = {
         "email": email or "—",
         "contato": contato or "—",
         "uf": uf_destino if uf_destino != "—" else "",
+        "uf_origem": uf_origem or UF_ORIGEM_PADRAO,
     },
     "cotacao": {
         "vendedor": vendedor,
@@ -656,6 +704,9 @@ dados_pdf = {
     "comissao_valor": comissao_valor,
     "marca_dagua": True,
     "capa": True,
+    "difal": difal_info,
+    "total_cliente_avista": total_cliente_avista,
+    "total_cliente_prazo": total_cliente_prazo,
 }
 
 incluir_capa = st.checkbox("Incluir capa no PDF", value=True)
