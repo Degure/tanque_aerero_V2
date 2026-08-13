@@ -182,17 +182,37 @@ def criar_estilos():
     styles.add(ParagraphStyle(
         name="ValorDestaque",
         fontName="Helvetica-Bold",
-        fontSize=12,
+        fontSize=14,
         textColor=AZUL_ESCURO,
         alignment=TA_RIGHT,
+        leading=16,
     ))
 
     styles.add(ParagraphStyle(
         name="Desconto",
         fontName="Helvetica-Bold",
-        fontSize=11,
+        fontSize=13,
         textColor=VERDE_DESCONTO,
         alignment=TA_RIGHT,
+        leading=15,
+    ))
+
+    styles.add(ParagraphStyle(
+        name="ValorLabel",
+        fontName="Helvetica-Bold",
+        fontSize=10,
+        textColor=AZUL_ESCURO,
+        alignment=TA_LEFT,
+        leading=13,
+    ))
+
+    styles.add(ParagraphStyle(
+        name="ValorTotal",
+        fontName="Helvetica-Bold",
+        fontSize=16,
+        textColor=AZUL_ESCURO,
+        alignment=TA_RIGHT,
+        leading=18,
     ))
 
     styles.add(ParagraphStyle(
@@ -489,52 +509,93 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         frete_obs = dados.get("frete_obs", "A COMBINAR")
         total_geral = dados.get("total_geral", total_produtos)
 
+        # Tabela de valores — só inclui linhas com conteúdo relevante (sem zeros vazios)
         totais_data = [
-            [Paragraph("<b>VALOR TOTAL PRODUTOS</b>", styles["CorpoPequeno"]),
-             Paragraph(f"<b>{format_brl(total_produtos)}</b>", styles["ValorDestaque"])],
-            [Paragraph(f"Desconto pagamento à vista ({desconto_pct:.1f}%)", styles["CorpoPequeno"]),
-             Paragraph(f"- {format_brl(valor_desconto)}", styles["CorpoPequeno"])],
-            [Paragraph("<b>VALOR ESPECIAL À VISTA</b>", styles["CorpoPequeno"]),
-             Paragraph(f"<b>{format_brl(total_avista)}</b>", styles["Desconto"])],
+            [Paragraph("VALOR TOTAL DOS PRODUTOS", styles["ValorLabel"]),
+             Paragraph(format_brl(total_produtos), styles["ValorDestaque"])],
         ]
-        if frete > 0:
+        row_styles_extra = []  # índices de linhas especiais para cor de fundo
+
+        if valor_desconto and valor_desconto > 0:
             totais_data.append([
-                Paragraph(f"Frete: {frete_obs}", styles["CorpoPequeno"]),
-                Paragraph(format_brl(frete), styles["CorpoPequeno"])
+                Paragraph(f"Desconto à vista ({desconto_pct:.1f}%)", styles["ValorLabel"]),
+                Paragraph(f"− {format_brl(valor_desconto)}", styles["Desconto"]),
             ])
             totais_data.append([
-                Paragraph("<b>TOTAL GERAL (c/ frete)</b>", styles["CorpoPequeno"]),
-                Paragraph(f"<b>{format_brl(total_geral)}</b>", styles["ValorDestaque"])
-            ])
-        else:
-            totais_data.append([
-                Paragraph(f"Frete: {frete_obs}", styles["CorpoPequeno"]),
-                Paragraph("—", styles["CorpoPequeno"])
+                Paragraph("VALOR ESPECIAL À VISTA", styles["ValorLabel"]),
+                Paragraph(format_brl(total_avista), styles["Desconto"]),
             ])
 
-        t_tot = Table(totais_data, colWidths=[130*mm, 45*mm])
-        t_tot.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.7, AZUL_ESCURO),
-            ("INNERGRID", (0, 0), (-1, -1), 0.3, CINZA_BORDA),
-            ("BACKGROUND", (0, 0), (-1, 0), CINZA_CLARO),
-            ("BACKGROUND", (0, 2), (-1, 2), colors.HexColor("#e6fffa")),
+        if frete and frete > 0:
+            totais_data.append([
+                Paragraph(f"Frete ({frete_obs})" if frete_obs else "Frete", styles["ValorLabel"]),
+                Paragraph(format_brl(frete), styles["ValorDestaque"]),
+            ])
+
+        v_difal_pr = float(dados.get("valor_difal_prazo") or 0)
+        v_difal_av = float(dados.get("valor_difal_avista") or 0)
+        difal_pr = dados.get("difal_prazo") or {}
+        difal_av = dados.get("difal_avista") or {}
+
+        if v_difal_pr > 0:
+            totais_data.append([
+                Paragraph("DIFAL (à prazo)", styles["ValorLabel"]),
+                Paragraph(format_brl(v_difal_pr), styles["ValorDestaque"]),
+            ])
+        if v_difal_av > 0:
+            totais_data.append([
+                Paragraph("DIFAL (à vista)", styles["ValorLabel"]),
+                Paragraph(format_brl(v_difal_av), styles["ValorDestaque"]),
+            ])
+
+        tc_pr = dados.get("total_cliente_prazo")
+        tc_av = dados.get("total_cliente_avista")
+        if tc_pr is not None:
+            idx_pr = len(totais_data)
+            totais_data.append([
+                Paragraph("TOTAL ESTIMADO À PRAZO (produtos + frete + DIFAL)", styles["ValorLabel"]),
+                Paragraph(format_brl(tc_pr), styles["ValorTotal"]),
+            ])
+            row_styles_extra.append(idx_pr)
+        if tc_av is not None and (valor_desconto > 0 or v_difal_av > 0 or frete > 0):
+            idx_av = len(totais_data)
+            totais_data.append([
+                Paragraph("TOTAL ESTIMADO À VISTA (produtos − desc. + frete + DIFAL)", styles["ValorLabel"]),
+                Paragraph(format_brl(tc_av), styles["ValorTotal"]),
+            ])
+            row_styles_extra.append(idx_av)
+
+        t_tot = Table(totais_data, colWidths=[125*mm, 50*mm])
+        style_cmds = [
+            ("BOX", (0, 0), (-1, -1), 1.2, AZUL_ESCURO),
+            ("INNERGRID", (0, 0), (-1, -1), 0.4, CINZA_BORDA),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#ebf0f7")),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 5),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]))
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+        ]
+        for idx in row_styles_extra:
+            style_cmds.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#e6fffa")))
+        t_tot.setStyle(TableStyle(style_cmds))
         story.append(t_tot)
-        story.append(Spacer(1, 2*mm))
+        story.append(Spacer(1, 3*mm))
 
-        # Comparativo à prazo × à vista
-        story.append(Paragraph(
-            f"<b>Comparativo:</b> à prazo <b>{format_brl(total_produtos)}</b> &nbsp;→&nbsp; "
-            f"à vista <b>{format_brl(total_avista)}</b> "
-            f"(economia de <font color='#276749'><b>{format_brl(valor_desconto)}</b></font>)",
-            styles["CorpoPequeno"],
-        ))
+        # Detalhe do DIFAL só se houver valor
+        uf = (dados.get("cliente") or {}).get("uf") or ""
+        if (v_difal_pr > 0 or v_difal_av > 0) and uf:
+            origem = (difal_pr or difal_av or {}).get("uf_origem") or (dados.get("cliente") or {}).get("uf_origem") or "SC"
+            inter = (difal_pr or difal_av or {}).get("aliquota_interestadual", 0)
+            interna = (difal_pr or difal_av or {}).get("aliquota_interna_destino", 0)
+            story.append(Paragraph(
+                f"<font size='9'><b>DIFAL</b> ({origem} → {uf}): "
+                f"interna destino {interna:.1f}% − interestadual {inter:.1f}%. "
+                f"Orientativo — validar com o fiscal na NF.</font>",
+                styles["CorpoPequeno"],
+            ))
+
         val_ate = (dados.get("cotacao") or {}).get("validade_ate")
         val_txt = (dados.get("cotacao") or {}).get("validade", "7 dias")
         story.append(Paragraph(
@@ -542,39 +603,6 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
             + (f" — até <b>{val_ate}</b>" if val_ate else ""),
             styles["CorpoPequeno"],
         ))
-        uf = (dados.get("cliente") or {}).get("uf") or ""
-        difal = dados.get("difal") or {}
-        if uf:
-            story.append(Paragraph(f"<b>UF destino:</b> {uf}.", styles["CorpoPequeno"]))
-        if difal.get("aplica") and difal.get("valor_difal", 0) > 0:
-            story.append(Paragraph(
-                f"<b>DIFAL estimado (produtos nacionais):</b> "
-                f"{difal.get('uf_origem', 'SC')} → {difal.get('uf_destino', uf)} | "
-                f"interna destino {difal.get('aliquota_interna_destino', 0):.1f}% − "
-                f"interestadual {difal.get('aliquota_interestadual', 0):.1f}% "
-                f"(Δ {difal.get('diferenca_pp', 0):.1f} p.p.) | "
-                f"<b>{format_brl(difal.get('valor_difal', 0))}</b> "
-                f"sobre base {format_brl(difal.get('valor_base', 0))}. "
-                f"Orientativo — validar com o fiscal na NF.",
-                styles["CorpoPequeno"],
-            ))
-            tc_av = dados.get("total_cliente_avista")
-            tc_pr = dados.get("total_cliente_prazo")
-            if tc_av is not None:
-                story.append(Paragraph(
-                    f"<b>Total estimado para o cliente (à vista + frete + DIFAL):</b> {format_brl(tc_av)}"
-                    + (
-                        f" &nbsp;|&nbsp; <b>À prazo + frete + DIFAL:</b> {format_brl(tc_pr)}"
-                        if tc_pr is not None else ""
-                    ),
-                    styles["CorpoPequeno"],
-                ))
-        elif uf:
-            story.append(Paragraph(
-                difal.get("observacao")
-                or "Sem DIFAL interestadual para esta operação.",
-                styles["CorpoPequeno"],
-            ))
         if dados.get("obs_item"):
             story.append(Paragraph(f"<b>Obs. itens:</b> {dados['obs_item']}", styles["CorpoPequeno"]))
         story.append(Spacer(1, 2*mm))
