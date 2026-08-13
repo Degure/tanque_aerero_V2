@@ -1,0 +1,68 @@
+{
+  "salvo_em": "2026-08-13T00:13:45",
+  "numero": "2026-0001",
+  "dados": {
+    "cliente": {
+      "razao_social": "Teste LTDA",
+      "cnpj": "00.000.000/0001-00",
+      "endereco": "SC",
+      "telefone": "47",
+      "email": "a@b.com",
+      "contato": "João",
+      "uf": "SC"
+    },
+    "cotacao": {
+      "vendedor": "Elvio Martins",
+      "numero": "2026-0001",
+      "data": "12/08/2026",
+      "validade": "7 dias",
+      "validade_ate": "19/08/2026"
+    },
+    "itens": [
+      {
+        "descricao": "TANQUE 10.000L",
+        "qtd": 1,
+        "unitario": 18590,
+        "total": 18590
+      }
+    ],
+    "total_produtos": 18590,
+    "desconto_pct": 5.0,
+    "valor_desconto": 929.5,
+    "total_avista": 17660.5,
+    "frete": 0,
+    "frete_obs": "A COMBINAR",
+    "total_geral": 17660.5,
+    "tanque_key": "10.000L",
+    "bacia_key": "SEM BACIA",
+    "bomba_key": "SEM BOMBA",
+    "filtro_key": "SEM FILTRO",
+    "fluido": "Diesel",
+    "imagens": [
+      [
+        "Tanque 10.000L",
+        "imagens_produtos/tanques/tanque_horizontal_1.png"
+      ]
+    ],
+    "parcelas": [
+      {
+        "label": "Entrada",
+        "pct": 30,
+        "valor": 5577
+      },
+      {
+        "label": "Embarque",
+        "pct": 30,
+        "valor": 5577
+      },
+      {
+        "label": "Faturado",
+        "pct": 40,
+        "valor": 7436
+      }
+    ],
+    "base_parcela": 18590,
+    "capa": true,
+    "marca_dagua": true
+  }
+}
