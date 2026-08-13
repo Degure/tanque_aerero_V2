@@ -404,21 +404,27 @@ def calcular_difal(
     valor_nf: float,
     uf_destino: str,
     uf_origem: str = UF_ORIGEM_PADRAO,
+    valor_frete: float = 0.0,
 ) -> dict:
     """
     Estimativa comercial de DIFAL (produtos nacionais), matriz ICMS 2025 completa:
 
-        DIFAL = valor_NF × (alíquota interna DESTINO − alíquota interestadual origem→destino) / 100
+        Base = valor_NF + valor_frete  (frete integra a base de cálculo do ICMS/DIFAL)
+        DIFAL = Base × (alíquota interna DESTINO − alíquota interestadual origem→destino) / 100
 
     Mesmo estado: DIFAL = 0. Orientativo — validar com o fiscal na NF.
     """
+    base = float(valor_nf or 0) + float(valor_frete or 0)
+
     resultado = {
         "uf_origem": uf_origem or UF_ORIGEM_PADRAO,
         "uf_destino": uf_destino or "",
         "aliquota_interna_destino": 0.0,
         "aliquota_interestadual": 0.0,
         "diferenca_pp": 0.0,
-        "valor_base": float(valor_nf or 0),
+        "valor_produto": float(valor_nf or 0),
+        "valor_frete": float(valor_frete or 0),
+        "valor_base": base,
         "valor_difal": 0.0,
         "aplica": False,
         "observacao": "",
@@ -450,11 +456,11 @@ def calcular_difal(
         )
         return resultado
 
-    valor_difal = float(valor_nf or 0) * (diff / 100.0)
+    valor_difal = base * (diff / 100.0)
     resultado["valor_difal"] = round(valor_difal, 2)
     resultado["observacao"] = (
-        f"DIFAL estimado = base × ({interna:.1f}% − {inter:.1f}%) = "
-        f"R$ {resultado['valor_difal']:,.2f}. "
+        f"DIFAL estimado = (produto R$ {resultado['valor_produto']:,.2f} + frete R$ {resultado['valor_frete']:,.2f}) "
+        f"× ({interna:.1f}% − {inter:.1f}%) = R$ {resultado['valor_difal']:,.2f}. "
         f"Origem {origem} → destino {uf_destino}. Validar com o fiscal na NF."
     ).replace(",", "X").replace(".", ",").replace("X", ".")
     return resultado
