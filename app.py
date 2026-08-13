@@ -173,6 +173,11 @@ _ek = _tpl.get("elemento", "SEM ELEMENTO")
 
 col_t, col_b = st.columns(2)
 
+st.caption(
+    "Desconto **por item** reduz o valor do produto (já entra no total). "
+    "O desconto **à vista** (mais abaixo) é um benefício extra, só se o cliente pagar à vista."
+)
+
 with col_t:
     tanque_key = st.selectbox(
         "Tanque Aéreo",
@@ -180,14 +185,23 @@ with col_t:
         index=_idx(TANQUES.keys(), _tk, list(TANQUES.keys()).index("10.000L") if "10.000L" in TANQUES else 0),
     )
     tinfo = TANQUES[tanque_key]
-    st.caption(f"Ø {tinfo['diametro']} · Comp. {tinfo['comprimento']} · Chapa {tinfo['chapa']} · {tinfo['peso']} kg")
-    # key muda com a seleção → preço atualiza automaticamente
+    st.caption(
+        f"Tabela: {format_brl(float(tinfo['preco']))} · "
+        f"Ø {tinfo['diametro']} · Comp. {tinfo['comprimento']} · Chapa {tinfo['chapa']} · {tinfo['peso']} kg"
+    )
+    desc_tanque = st.number_input(
+        "Desconto tanque (%)",
+        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
+        key=f"d_tanque_{tanque_key}",
+    )
+    preco_sug_t = float(tinfo["preco"]) * (1 - desc_tanque / 100.0)
     preco_tanque = st.number_input(
-        "Preço Tanque (R$)",
-        value=float(tinfo["preco"]),
+        "Preço final Tanque (R$)",
+        value=float(preco_sug_t),
         min_value=0.0,
         step=10.0,
-        key=f"p_tanque_{tanque_key}",
+        key=f"p_tanque_{tanque_key}_{desc_tanque}",
+        help="Pode ajustar manualmente além do % de desconto.",
     )
 
 with col_b:
@@ -198,47 +212,77 @@ with col_b:
     )
     binfo = BACIAS[bacia_key]
     if bacia_key != "SEM BACIA":
-        st.caption(f"L {binfo['largura']} · A {binfo['altura']} · C {binfo['comprimento']} · {binfo['peso']} kg")
+        st.caption(
+            f"Tabela: {format_brl(float(binfo['preco']))} · "
+            f"L {binfo['largura']} · A {binfo['altura']} · C {binfo['comprimento']} · {binfo['peso']} kg"
+        )
     else:
         st.caption("Sem bacia de contenção")
+    desc_bacia = st.number_input(
+        "Desconto bacia (%)",
+        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
+        key=f"d_bacia_{bacia_key}",
+    )
+    preco_sug_b = float(binfo["preco"]) * (1 - desc_bacia / 100.0)
     preco_bacia = st.number_input(
-        "Preço Bacia (R$)",
-        value=float(binfo["preco"]),
+        "Preço final Bacia (R$)",
+        value=float(preco_sug_b),
         min_value=0.0,
         step=10.0,
-        key=f"p_bacia_{bacia_key}",
+        key=f"p_bacia_{bacia_key}_{desc_bacia}",
     )
 
 col_bo, col_f, col_e = st.columns(3)
 
 with col_bo:
     bomba_key = st.selectbox("Bomba de Abastecimento", options=list(BOMBAS.keys()), index=_idx(BOMBAS.keys(), _bok, 0))
+    st.caption(f"Tabela: {format_brl(float(BOMBAS[bomba_key]))}")
+    desc_bomba = st.number_input(
+        "Desconto bomba (%)",
+        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
+        key=f"d_bomba_{bomba_key}",
+    )
+    preco_sug_bo = float(BOMBAS[bomba_key]) * (1 - desc_bomba / 100.0)
     preco_bomba = st.number_input(
-        "Preço Bomba (R$)",
-        value=float(BOMBAS[bomba_key]),
+        "Preço final Bomba (R$)",
+        value=float(preco_sug_bo),
         min_value=0.0,
         step=10.0,
-        key=f"p_bomba_{bomba_key}",
+        key=f"p_bomba_{bomba_key}_{desc_bomba}",
     )
 
 with col_f:
     filtro_key = st.selectbox("Filtro", options=list(FILTROS.keys()), index=_idx(FILTROS.keys(), _fk, 0))
+    st.caption(f"Tabela: {format_brl(float(FILTROS[filtro_key]))}")
+    desc_filtro = st.number_input(
+        "Desconto filtro (%)",
+        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
+        key=f"d_filtro_{filtro_key}",
+    )
+    preco_sug_f = float(FILTROS[filtro_key]) * (1 - desc_filtro / 100.0)
     preco_filtro = st.number_input(
-        "Preço Filtro (R$)",
-        value=float(FILTROS[filtro_key]),
+        "Preço final Filtro (R$)",
+        value=float(preco_sug_f),
         min_value=0.0,
         step=10.0,
-        key=f"p_filtro_{filtro_key}",
+        key=f"p_filtro_{filtro_key}_{desc_filtro}",
     )
 
 with col_e:
     elemento_key = st.selectbox("Elemento Filtrante", options=list(ELEMENTOS.keys()), index=_idx(ELEMENTOS.keys(), _ek, 0))
+    st.caption(f"Tabela: {format_brl(float(ELEMENTOS[elemento_key]))}")
+    desc_elemento = st.number_input(
+        "Desconto elemento (%)",
+        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
+        key=f"d_elem_{elemento_key}",
+    )
+    preco_sug_e = float(ELEMENTOS[elemento_key]) * (1 - desc_elemento / 100.0)
     preco_elemento = st.number_input(
-        "Preço Elemento (R$)",
-        value=float(ELEMENTOS[elemento_key]),
+        "Preço final Elemento (R$)",
+        value=float(preco_sug_e),
         min_value=0.0,
         step=10.0,
-        key=f"p_elem_{elemento_key}",
+        key=f"p_elem_{elemento_key}_{desc_elemento}",
     )
 
 # ==================== PRODUTOS OPCIONAIS (checkbox) ====================
@@ -316,12 +360,16 @@ col_d1, col_d2, col_d3 = st.columns(3)
 
 with col_d1:
     desconto_pct = st.number_input(
-        "Desconto à vista (%)",
+        "Desconto à vista — plus (%)",
         min_value=0.0,
         max_value=30.0,
         value=5.0,
         step=0.5,
-        help="Percentual de desconto para pagamento à vista. Pode ser alterado livremente."
+        help=(
+            "Benefício extra só no pagamento à vista. "
+            "Descontos negociados por produto ficam nos campos de cada item acima "
+            "e já compõem o total dos produtos (à prazo)."
+        ),
     )
 
 with col_d2:
@@ -495,24 +543,29 @@ total_geral = total_avista + frete_valor  # frete normalmente não entra no desc
 peso_total = tinfo.get("peso", 0) + binfo.get("peso", 0)
 
 # ----- DIFAL -----
-# Base da NF = (produtos − desconto) + frete  →  total à vista + frete
-base_difal = total_avista + frete_valor
-difal_info = calcular_difal(
-    base_difal,
-    uf_destino if uf_destino != "—" else "",
-    uf_origem or UF_ORIGEM_PADRAO,
-)
+# À vista → base NF = (produtos − desc. à vista) + frete
+# À prazo → base NF = produtos (já com desconto por item, SEM desc. à vista) + frete
+eh_avista = base_pagamento.startswith("Valor à vista")
+_uf_d = uf_destino if uf_destino != "—" else ""
+_uf_o = uf_origem or UF_ORIGEM_PADRAO
+
+difal_info_avista = calcular_difal(total_avista + frete_valor, _uf_d, _uf_o)
+difal_info_prazo = calcular_difal(total_produtos + frete_valor, _uf_d, _uf_o)
+
+# DIFAL e base usados conforme a modalidade de pagamento selecionada
+difal_info = difal_info_avista if eh_avista else difal_info_prazo
+base_difal = float(difal_info.get("valor_base") or 0)
 valor_difal = float(difal_info.get("valor_difal") or 0)
 
-# Totais estimados para o cliente (tudo incluso)
-total_cliente_avista = total_avista + frete_valor + valor_difal
-total_cliente_prazo = total_produtos + frete_valor + valor_difal
+valor_difal_avista = float(difal_info_avista.get("valor_difal") or 0)
+valor_difal_prazo = float(difal_info_prazo.get("valor_difal") or 0)
 
-# Base das parcelas: inclui produtos (+/− desconto) + frete + DIFAL
-if base_pagamento.startswith("Valor à vista"):
-    base_parcela = total_cliente_avista  # à vista + frete + DIFAL
-else:
-    base_parcela = total_cliente_prazo  # à prazo + frete + DIFAL
+# Totais estimados para o cliente (cada um com seu próprio DIFAL)
+total_cliente_avista = total_avista + frete_valor + valor_difal_avista
+total_cliente_prazo = total_produtos + frete_valor + valor_difal_prazo
+
+# Parcelas: modalidade escolhida + frete + DIFAL dessa modalidade
+base_parcela = total_cliente_avista if eh_avista else total_cliente_prazo
 
 parcelas_calc = []
 for p in parcelas_cfg:
@@ -569,10 +622,9 @@ c7.metric("Comissão", format_brl(comissao_valor) if comissao_valor else "—")
 # ----- DIFAL (já calculado acima) + totais para o cliente -----
 st.markdown("**DIFAL estimado (ICMS interestadual)**")
 st.caption(
-    "Base da NF = (produtos − desconto) + frete. "
-    "DIFAL = base × (alíquota interna do **destino** − interestadual). "
-    "Parcelas = base escolhida (à vista ou à prazo) + frete + DIFAL. "
-    "Tabela ICMS 2025 (matriz 27×27)."
+    "À **prazo**: base NF = produtos (com desconto por item) + frete. "
+    "À **vista**: base NF = (produtos − desc. à vista) + frete. "
+    "DIFAL e parcelas seguem a modalidade selecionada em “Calcular parcelas sobre”."
 )
 if uf_destino and uf_destino != "—":
     d1, d2, d3, d4 = st.columns(4)
@@ -596,10 +648,9 @@ t1.metric("À prazo + frete + DIFAL", format_brl(total_cliente_prazo))
 t2.metric("À vista + frete + DIFAL", format_brl(total_cliente_avista))
 t3.metric("Só DIFAL", format_brl(valor_difal))
 st.caption(
-    "Base NF (DIFAL): (produtos − desconto) + frete. "
-    "À vista: produtos com desconto + frete + DIFAL. "
-    "À prazo: produtos sem desconto + frete + DIFAL. "
-    "As parcelas usam a base escolhida acima (já com frete e DIFAL)."
+    "Produtos já podem incluir desconto por item. "
+    "Desc. à vista é um plus só na modalidade à vista. "
+    "Cada total (à vista / à prazo) leva o DIFAL calculado na base correspondente."
 )
 
 if frete_valor > 0:
