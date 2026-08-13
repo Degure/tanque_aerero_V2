@@ -494,11 +494,21 @@ total_geral = total_avista + frete_valor  # frete normalmente não entra no desc
 
 peso_total = tinfo.get("peso", 0) + binfo.get("peso", 0)
 
-# Base das parcelas: à prazo ou à vista (+ frete se houver)
+# ----- DIFAL (calculado ANTES das parcelas — frete entra na base) -----
+base_difal = total_produtos  # base do produto; o frete é somado dentro de calcular_difal
+difal_info = calcular_difal(
+    base_difal,
+    uf_destino if uf_destino != "—" else "",
+    uf_origem or UF_ORIGEM_PADRAO,
+    valor_frete=frete_valor,
+)
+valor_difal = float(difal_info.get("valor_difal") or 0)
+
+# Base das parcelas: à prazo ou à vista + frete + DIFAL
 if base_pagamento.startswith("Valor à vista"):
-    base_parcela = total_avista + frete_valor
+    base_parcela = total_avista + frete_valor + valor_difal
 else:
-    base_parcela = total_produtos + frete_valor
+    base_parcela = total_produtos + frete_valor + valor_difal
 
 parcelas_calc = []
 for p in parcelas_cfg:
@@ -516,14 +526,7 @@ margem_pct = ((total_produtos - custo_total) / total_produtos * 100) if custo_to
 comissao_valor = total_produtos * (comissao_pct / 100.0) if comissao_pct > 0 else 0.0
 primeira_parcela = parcelas_calc[0]["valor"] if parcelas_calc else 0.0
 
-# DIFAL + total estimado cliente (antes da sidebar para aparecer no resumo lateral)
-base_difal = total_produtos
-difal_info = calcular_difal(
-    base_difal,
-    uf_destino if uf_destino != "—" else "",
-    uf_origem or UF_ORIGEM_PADRAO,
-)
-valor_difal = float(difal_info.get("valor_difal") or 0)
+# Total estimado para o cliente (já reflete a mesma base das parcelas)
 total_cliente_avista = total_avista + frete_valor + valor_difal
 total_cliente_prazo = total_produtos + frete_valor + valor_difal
 
