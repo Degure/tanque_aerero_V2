@@ -345,7 +345,7 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
     logo_gp = None
     if os.path.exists(LOGO_CASA):
         try:
-            logo_casa = Image(LOGO_CASA, width=55*mm, height=8*mm)
+            logo_casa = Image(LOGO_CASA, width=45*mm, height=8*mm)
         except Exception:
             pass
     if os.path.exists(LOGO_GP):
