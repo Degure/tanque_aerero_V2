@@ -380,29 +380,11 @@ with col_d3:
     fluido = st.text_input("Fluido a ser armazenado", value="Diesel")
     obs_gerais = st.text_area("Observações gerais (aparecem no PDF)", value="", height=80)
 
-col_m1, col_m2, col_m3 = st.columns(3)
-with col_m1:
-    custo_total = st.number_input(
-        "Custo interno total (R$) — opcional",
-        min_value=0.0,
-        value=0.0,
-        step=100.0,
-        help="Se preenchido, calcula margem sobre o valor à prazo.",
-    )
-with col_m2:
-    comissao_pct = st.number_input(
-        "Comissão vendedor (%)",
-        min_value=0.0,
-        max_value=30.0,
-        value=0.0,
-        step=0.5,
-    )
-with col_m3:
-    obs_item = st.text_input(
-        "Observação extra nos itens (PDF)",
-        value="",
-        help="Texto livre que aparece junto à descrição dos produtos.",
-    )
+obs_item = st.text_input(
+    "Observação extra nos itens (PDF)",
+    value="",
+    help="Texto livre que aparece junto à descrição dos produtos.",
+)
 
 # ==================== FORMA DE PAGAMENTO ====================
 st.markdown("**Forma de pagamento (parcelas)**")
@@ -577,10 +559,6 @@ for p in parcelas_cfg:
             "valor": valor_p,
         })
 
-# Margem e comissão
-margem_valor = (total_produtos - custo_total) if custo_total > 0 else None
-margem_pct = ((total_produtos - custo_total) / total_produtos * 100) if custo_total > 0 and total_produtos > 0 else None
-comissao_valor = total_produtos * (comissao_pct / 100.0) if comissao_pct > 0 else 0.0
 primeira_parcela = parcelas_calc[0]["valor"] if parcelas_calc else 0.0
 
 # Resumo fixo na sidebar (sempre visível)
@@ -588,18 +566,15 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### Resumo rápido")
     st.metric("Total produtos", format_brl(total_produtos))
-    st.metric("À vista", format_brl(total_avista))
+    if valor_desconto > 0:
+        st.metric("À vista", format_brl(total_avista))
     if primeira_parcela:
         st.metric("1ª parcela", format_brl(primeira_parcela))
-    if valor_difal > 0:
-        st.metric("DIFAL", format_brl(valor_difal))
-    st.metric("Total cliente (à vista+DIFAL)", format_brl(total_cliente_avista))
-    if margem_pct is not None:
-        st.metric("Margem", f"{margem_pct:.1f}%")
-        if margem_pct < 15:
-            st.warning("Margem abaixo de 15%")
-    if comissao_valor > 0:
-        st.caption(f"Comissão: {format_brl(comissao_valor)}")
+    if valor_difal_prazo > 0:
+        st.metric("DIFAL à prazo", format_brl(valor_difal_prazo))
+    if valor_difal_avista > 0:
+        st.metric("DIFAL à vista", format_brl(valor_difal_avista))
+    st.metric("Total c/ DIFAL (modalidade)", format_brl(base_parcela))
 
 
 # ==================== RESUMO EM TEMPO REAL ====================
@@ -607,51 +582,41 @@ st.subheader("4. Resumo do Orçamento")
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Total Produtos", format_brl(total_produtos))
-c2.metric(f"Desconto {desconto_pct:.1f}%", f"- {format_brl(valor_desconto)}")
-c3.metric("Valor à Vista", format_brl(total_avista))
+if valor_desconto > 0:
+    c2.metric(f"Desc. à vista {desconto_pct:.1f}%", f"- {format_brl(valor_desconto)}")
+    c3.metric("Valor à Vista", format_brl(total_avista))
+else:
+    c2.metric("Desc. à vista", "—")
+    c3.metric("Valor à Vista", format_brl(total_avista))
 c4.metric("Peso aprox.", f"{peso_total} kg")
 
-c5, c6, c7 = st.columns(3)
-c5.metric("À prazo × À vista", f"Economia {format_brl(valor_desconto)}")
-if margem_valor is not None:
-    c6.metric("Margem", f"{format_brl(margem_valor)} ({margem_pct:.1f}%)")
-else:
-    c6.metric("Margem", "—")
-c7.metric("Comissão", format_brl(comissao_valor) if comissao_valor else "—")
-
-# ----- DIFAL (já calculado acima) + totais para o cliente -----
+# ----- DIFAL: mostra os dois valores (à vista e à prazo) -----
 st.markdown("**DIFAL estimado (ICMS interestadual)**")
 st.caption(
-    "À **prazo**: base NF = produtos (com desconto por item) + frete. "
-    "À **vista**: base NF = (produtos − desc. à vista) + frete. "
-    "DIFAL e parcelas seguem a modalidade selecionada em “Calcular parcelas sobre”."
+    "À **prazo**: base = produtos + frete. "
+    "À **vista**: base = (produtos − desc. à vista) + frete. "
+    "Parcelas usam a modalidade selecionada em “Calcular parcelas sobre”."
 )
 if uf_destino and uf_destino != "—":
     d1, d2, d3, d4 = st.columns(4)
     d1.metric("UF", f"{uf_origem} → {uf_destino}")
     d2.metric("Interna destino", f"{difal_info['aliquota_interna_destino']:.1f}%")
     d3.metric("Interestadual", f"{difal_info['aliquota_interestadual']:.1f}%")
-    d4.metric("DIFAL estimado", format_brl(valor_difal))
-    if difal_info["aplica"] and valor_difal > 0:
-        st.success(
-            f"Diferença: {difal_info['diferenca_pp']:.1f} p.p. sobre base {format_brl(base_difal)}. "
-            "Orientativo — confirmar com o fiscal na NF."
-        )
+    d4.metric("Δ alíquota", f"{difal_info.get('diferenca_pp', 0):.1f} p.p.")
+    if valor_difal_prazo > 0 or valor_difal_avista > 0:
+        x1, x2 = st.columns(2)
+        x1.metric("DIFAL à prazo", format_brl(valor_difal_prazo))
+        x2.metric("DIFAL à vista", format_brl(valor_difal_avista))
+        st.caption("Orientativo — confirmar com o fiscal na NF.")
     else:
-        st.info(difal_info.get("observacao") or "Sem DIFAL para esta combinação.")
+        st.info(difal_info.get("observacao") or "Sem DIFAL para esta combinação de UFs.")
 else:
-    st.warning("Selecione a **UF destino** nos dados do cliente para calcular o DIFAL.")
+    st.warning("Selecione a **UF destino** para calcular o DIFAL (senão ele não entra na proposta).")
 
 st.markdown("**Total estimado para o cliente**")
-t1, t2, t3 = st.columns(3)
+t1, t2 = st.columns(2)
 t1.metric("À prazo + frete + DIFAL", format_brl(total_cliente_prazo))
 t2.metric("À vista + frete + DIFAL", format_brl(total_cliente_avista))
-t3.metric("Só DIFAL", format_brl(valor_difal))
-st.caption(
-    "Produtos já podem incluir desconto por item. "
-    "Desc. à vista é um plus só na modalidade à vista. "
-    "Cada total (à vista / à prazo) leva o DIFAL calculado na base correspondente."
-)
 
 if frete_valor > 0:
     st.info(f"Frete: {format_brl(frete_valor)} → **Total geral: {format_brl(total_geral)}**")
@@ -755,14 +720,13 @@ dados_pdf = {
     "parcelas": parcelas_calc,
     "base_pagamento": base_pagamento,
     "base_parcela": base_parcela,
-    "custo_total": custo_total,
-    "margem_valor": margem_valor,
-    "margem_pct": margem_pct,
-    "comissao_pct": comissao_pct,
-    "comissao_valor": comissao_valor,
     "marca_dagua": True,
     "capa": True,
     "difal": difal_info,
+    "difal_avista": difal_info_avista,
+    "difal_prazo": difal_info_prazo,
+    "valor_difal_avista": valor_difal_avista,
+    "valor_difal_prazo": valor_difal_prazo,
     "total_cliente_avista": total_cliente_avista,
     "total_cliente_prazo": total_cliente_prazo,
 }
@@ -788,8 +752,6 @@ if gerar:
     soma_pct = sum(p["pct"] for p in parcelas_cfg)
     if parcelas_cfg and abs(soma_pct - 100.0) > 0.5:
         erros.append(f"Soma das parcelas = {soma_pct:.1f}% (precisa ser 100%)")
-    if margem_pct is not None and margem_pct < 0:
-        erros.append("Margem negativa (custo maior que o preço)")
 
     if erros:
         st.error("Corrija antes de gerar o PDF:\n- " + "\n- ".join(erros))
