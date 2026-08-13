@@ -543,10 +543,36 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
             styles["CorpoPequeno"],
         ))
         uf = (dados.get("cliente") or {}).get("uf") or ""
+        difal = dados.get("difal") or {}
         if uf:
+            story.append(Paragraph(f"<b>UF destino:</b> {uf}.", styles["CorpoPequeno"]))
+        if difal.get("aplica") and difal.get("valor_difal", 0) > 0:
             story.append(Paragraph(
-                f"<b>UF destino:</b> {uf}. Se o cliente não for contribuinte de ICMS, "
-                "poderá haver diferencial de alíquota (DIFAL) conforme o estado.",
+                f"<b>DIFAL estimado (produtos nacionais):</b> "
+                f"{difal.get('uf_origem', 'SC')} → {difal.get('uf_destino', uf)} | "
+                f"interna destino {difal.get('aliquota_interna_destino', 0):.1f}% − "
+                f"interestadual {difal.get('aliquota_interestadual', 0):.1f}% "
+                f"(Δ {difal.get('diferenca_pp', 0):.1f} p.p.) | "
+                f"<b>{format_brl(difal.get('valor_difal', 0))}</b> "
+                f"sobre base {format_brl(difal.get('valor_base', 0))}. "
+                f"Orientativo — validar com o fiscal na NF.",
+                styles["CorpoPequeno"],
+            ))
+            tc_av = dados.get("total_cliente_avista")
+            tc_pr = dados.get("total_cliente_prazo")
+            if tc_av is not None:
+                story.append(Paragraph(
+                    f"<b>Total estimado para o cliente (à vista + frete + DIFAL):</b> {format_brl(tc_av)}"
+                    + (
+                        f" &nbsp;|&nbsp; <b>À prazo + frete + DIFAL:</b> {format_brl(tc_pr)}"
+                        if tc_pr is not None else ""
+                    ),
+                    styles["CorpoPequeno"],
+                ))
+        elif uf:
+            story.append(Paragraph(
+                difal.get("observacao")
+                or "Sem DIFAL interestadual para esta operação.",
                 styles["CorpoPequeno"],
             ))
         if dados.get("obs_item"):
@@ -647,7 +673,7 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         story.append(Paragraph("1. CONDIÇÕES COMERCIAIS", styles["Subtitulo"]))
         story.append(Paragraph(
             "Os valores apresentados são para pagamento nas condições abaixo. "
-            "<b>Caso o cliente não seja contribuinte de ICMS, poderá ser adicionado o diferencial de alíquota conforme o estado de destino.</b>",
+            "Caso o cliente não seja contribuinte de ICMS, poderá ser adicionado o diferencial de alíquota conforme o estado de destino.",
             styles["Corpo"]
         ))
 
@@ -732,10 +758,10 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         story.append(Paragraph("• Transporte até o local combinado (quando incluso no valor ou frete contratado).", styles["ItemLista"]))
 
         story.append(Paragraph("<b>Do Comprador:</b>", styles["CorpoPequeno"]))
-        story.append(Paragraph("<font size='9'><b>• Acesso rodoviário livre e desimpedido para descarga.</b></font>", styles["ItemLista"]))
-        story.append(Paragraph("<font size='9'><b>• Descarregamento com guincho Munck por conta do cliente.</b></font>", styles["ItemLista"]))
-        story.append(Paragraph("<font size='9'><b>• Preparação da base de apoio (concreto ou estrutura adequada).</b></font>", styles["ItemLista"]))
-        story.append(Paragraph("<font size='9'><b>• Obtenção de licenças e alvarás locais, quando exigidos.</b></font>", styles["ItemLista"]))
+        story.append(Paragraph("• Acesso rodoviário livre e desimpedido para descarga.", styles["ItemLista"]))
+        story.append(Paragraph("• Descarregamento com guincho Munck por conta do cliente.", styles["ItemLista"]))
+        story.append(Paragraph("• Preparação da base de apoio (concreto ou estrutura adequada).", styles["ItemLista"]))
+        story.append(Paragraph("• Obtenção de licenças e alvarás locais, quando exigidos.", styles["ItemLista"]))
 
         story.append(Paragraph("4. OBSERVAÇÕES GERAIS / CLÁUSULAS", styles["Subtitulo"]))
         story.append(Paragraph(
