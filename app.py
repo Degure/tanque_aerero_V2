@@ -494,11 +494,25 @@ total_geral = total_avista + frete_valor  # frete normalmente não entra no desc
 
 peso_total = tinfo.get("peso", 0) + binfo.get("peso", 0)
 
-# Base das parcelas: à prazo ou à vista (+ frete se houver)
+# ----- DIFAL -----
+# Base da NF = (produtos − desconto) + frete  →  total à vista + frete
+base_difal = total_avista + frete_valor
+difal_info = calcular_difal(
+    base_difal,
+    uf_destino if uf_destino != "—" else "",
+    uf_origem or UF_ORIGEM_PADRAO,
+)
+valor_difal = float(difal_info.get("valor_difal") or 0)
+
+# Totais estimados para o cliente (tudo incluso)
+total_cliente_avista = total_avista + frete_valor + valor_difal
+total_cliente_prazo = total_produtos + frete_valor + valor_difal
+
+# Base das parcelas: inclui produtos (+/− desconto) + frete + DIFAL
 if base_pagamento.startswith("Valor à vista"):
-    base_parcela = total_avista + frete_valor
+    base_parcela = total_cliente_avista  # à vista + frete + DIFAL
 else:
-    base_parcela = total_produtos + frete_valor
+    base_parcela = total_cliente_prazo  # à prazo + frete + DIFAL
 
 parcelas_calc = []
 for p in parcelas_cfg:
@@ -515,17 +529,6 @@ margem_valor = (total_produtos - custo_total) if custo_total > 0 else None
 margem_pct = ((total_produtos - custo_total) / total_produtos * 100) if custo_total > 0 and total_produtos > 0 else None
 comissao_valor = total_produtos * (comissao_pct / 100.0) if comissao_pct > 0 else 0.0
 primeira_parcela = parcelas_calc[0]["valor"] if parcelas_calc else 0.0
-
-# DIFAL + total estimado cliente (antes da sidebar para aparecer no resumo lateral)
-base_difal = total_produtos
-difal_info = calcular_difal(
-    base_difal,
-    uf_destino if uf_destino != "—" else "",
-    uf_origem or UF_ORIGEM_PADRAO,
-)
-valor_difal = float(difal_info.get("valor_difal") or 0)
-total_cliente_avista = total_avista + frete_valor + valor_difal
-total_cliente_prazo = total_produtos + frete_valor + valor_difal
 
 # Resumo fixo na sidebar (sempre visível)
 with st.sidebar:
@@ -566,8 +569,10 @@ c7.metric("Comissão", format_brl(comissao_valor) if comissao_valor else "—")
 # ----- DIFAL (já calculado acima) + totais para o cliente -----
 st.markdown("**DIFAL estimado (ICMS interestadual)**")
 st.caption(
-    "Fórmula: valor da NF × (alíquota interna do **destino** − alíquota interestadual). "
-    "Produtos nacionais. Tabela ICMS 2025 com matriz interestadual completa (27×27)."
+    "Base da NF = (produtos − desconto) + frete. "
+    "DIFAL = base × (alíquota interna do **destino** − interestadual). "
+    "Parcelas = base escolhida (à vista ou à prazo) + frete + DIFAL. "
+    "Tabela ICMS 2025 (matriz 27×27)."
 )
 if uf_destino and uf_destino != "—":
     d1, d2, d3, d4 = st.columns(4)
@@ -591,8 +596,10 @@ t1.metric("À prazo + frete + DIFAL", format_brl(total_cliente_prazo))
 t2.metric("À vista + frete + DIFAL", format_brl(total_cliente_avista))
 t3.metric("Só DIFAL", format_brl(valor_difal))
 st.caption(
-    "Composição à vista: produtos com desconto + frete + DIFAL. "
-    "Composição à prazo: produtos sem desconto + frete + DIFAL."
+    "Base NF (DIFAL): (produtos − desconto) + frete. "
+    "À vista: produtos com desconto + frete + DIFAL. "
+    "À prazo: produtos sem desconto + frete + DIFAL. "
+    "As parcelas usam a base escolhida acima (já com frete e DIFAL)."
 )
 
 if frete_valor > 0:
@@ -603,7 +610,7 @@ if parcelas_calc:
     st.markdown(
         f"**Parcelas** (sobre {format_brl(base_parcela)} — "
         f"{'à vista' if base_pagamento.startswith('Valor à vista') else 'à prazo'}"
-        f"{' + frete' if frete_valor > 0 else ''})"
+        f" + frete + DIFAL)"
     )
     cols_v = st.columns(min(len(parcelas_calc), 4))
     for idx, p in enumerate(parcelas_calc):
