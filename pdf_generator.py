@@ -276,7 +276,7 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         story.append(Spacer(1, 35*mm))
         if os.path.exists(LOGO_CASA):
             try:
-                story.append(Image(LOGO_CASA, width=70*mm, height=22*mm))
+                story.append(Image(LOGO_CASA, width=80*mm, height=22*mm))
             except Exception:
                 pass
         story.append(Spacer(1, 8*mm))
