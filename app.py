@@ -17,7 +17,7 @@ from data import (
 from pdf_generator import gerar_pdf, format_brl
 from storage import (
     proximo_numero_cotacao, salvar_proposta,
-    listar_propostas, carregar_proposta,
+    listar_propostas, carregar_proposta, numero_existe,
 )
 
 # ==================== CONFIG ====================
@@ -148,6 +148,14 @@ with col3:
         st.session_state.numero_auto = proximo_numero_cotacao()
         st.rerun()
     numero_cotacao = st.text_input("Nº da Cotação *", value=st.session_state.numero_auto)
+    # Validação em tempo real: número já usado no histórico
+    if numero_cotacao.strip() and numero_existe(numero_cotacao):
+        st.error(
+            f"O número **{numero_cotacao.strip()}** já foi usado em outra proposta. "
+            "Clique em **Gerar novo nº de cotação** antes de emitir o PDF."
+        )
+    elif numero_cotacao.strip():
+        st.caption("Número disponível ✓")
     data_cotacao = st.date_input("Data", value=datetime.now())
     validade_dias = st.number_input("Validade (dias)", min_value=1, max_value=60, value=7)
     data_validade_fim = data_cotacao + timedelta(days=int(validade_dias))
@@ -878,6 +886,11 @@ if gerar:
         erros.append("Razão Social do cliente")
     if not numero_cotacao.strip():
         erros.append("Número da cotação")
+    elif numero_existe(numero_cotacao):
+        erros.append(
+            f"Número de cotação **{numero_cotacao.strip()}** já existe no histórico. "
+            "Clique em «Gerar novo nº de cotação» e tente de novo."
+        )
     if not vendedor or vendedor == "—":
         erros.append("Agente de vendas")
     soma_pct = sum(p["pct"] for p in parcelas_cfg)
@@ -889,16 +902,36 @@ if gerar:
     else:
         with st.spinner("Gerando proposta profissional..."):
             try:
+                # Revalida no momento do save (outro vendedor pode ter gravado no meio tempo)
+                if numero_existe(numero_cotacao):
+                    novo = proximo_numero_cotacao()
+                    st.warning(
+                        f"O número {numero_cotacao} foi usado por outro vendedor enquanto você preenchia. "
+                        f"Foi reservado o novo número **{novo}** para esta proposta."
+                    )
+                    numero_cotacao = novo
+                    st.session_state.numero_auto = novo
+                    dados_pdf["cotacao"]["numero"] = novo
+
                 pdf_bytes = gerar_pdf(dados_pdf, modo=modo_pdf)
-                # Histórico
                 try:
-                    path_salvo = salvar_proposta(numero_cotacao, dados_pdf, pdf_bytes)
+                    path_salvo = salvar_proposta(numero_cotacao, dados_pdf, pdf_bytes, sobrescrever=False)
+                    st.caption(f"Salvo no histórico: `{path_salvo}`")
+                except FileExistsError as e_dup:
+                    # Última linha de defesa
+                    novo = proximo_numero_cotacao()
+                    dados_pdf["cotacao"]["numero"] = novo
+                    numero_cotacao = novo
+                    st.session_state.numero_auto = novo
+                    pdf_bytes = gerar_pdf(dados_pdf, modo=modo_pdf)
+                    path_salvo = salvar_proposta(numero_cotacao, dados_pdf, pdf_bytes, sobrescrever=False)
+                    st.warning(f"Número ajustado automaticamente para **{novo}** (evitou duplicidade).")
                     st.caption(f"Salvo no histórico: `{path_salvo}`")
                 except Exception as e_hist:
                     st.warning(f"PDF ok, mas histórico não gravou: {e_hist}")
 
                 nome_arquivo = f"Proposta_{numero_cotacao.replace('/', '-')}_{razao_social[:30].replace(' ', '_')}.pdf"
-                st.success("Proposta gerada com sucesso!")
+                st.success(f"Proposta **{numero_cotacao}** gerada com sucesso!")
                 st.download_button(
                     label="⬇️ Baixar PDF",
                     data=pdf_bytes,
