@@ -386,6 +386,136 @@ obs_item = st.text_input(
     help="Texto livre que aparece junto à descrição dos produtos.",
 )
 
+# ==================== SIMULAÇÃO DE ECONOMIA (DIESEL TRR × POSTO) ====================
+st.markdown("**Simulação de economia — abastecimento via TRR**")
+st.caption(
+    "Demonstra ao cliente a economia de comprar diesel em TRR (com tanque próprio) "
+    "em vez de abastecer no posto. Valores editáveis; a tabela usa o volume do tanque selecionado."
+)
+incluir_economia = st.checkbox("Incluir simulação de economia na proposta", value=True)
+
+# Volume do tanque selecionado (ex.: "10.000L" → 10000)
+def _volume_litros(chave: str) -> int:
+    digitos = "".join(c for c in (chave or "") if c.isdigit())
+    try:
+        return int(digitos) if digitos else 5000
+    except Exception:
+        return 5000
+
+vol_tanque = _volume_litros(tanque_key)
+
+col_e1, col_e2, col_e3, col_e4 = st.columns(4)
+with col_e1:
+    preco_posto = st.number_input(
+        "Preço médio no posto (R$/L)",
+        min_value=0.0, value=7.59, step=0.01, format="%.2f",
+        disabled=not incluir_economia,
+    )
+with col_e2:
+    preco_trr = st.number_input(
+        "Preço médio na TRR (R$/L)",
+        min_value=0.0, value=6.92, step=0.01, format="%.2f",
+        disabled=not incluir_economia,
+    )
+with col_e3:
+    volume_simulado = st.number_input(
+        "Volume p/ tabela (L)",
+        min_value=100, value=int(vol_tanque), step=500,
+        help="Por padrão usa a capacidade do tanque selecionado.",
+        disabled=not incluir_economia,
+    )
+with col_e4:
+    # Consumo mensal estimado da frota (para gráfico de economia ao longo do ano)
+    consumo_mensal = st.number_input(
+        "Consumo mensal da frota (L)",
+        min_value=100, value=min(int(vol_tanque), 5000), step=100,
+        help="Litros abastecidos por mês — base do gráfico de economia mensal.",
+        disabled=not incluir_economia,
+    )
+
+economia_litro = max(0.0, preco_posto - preco_trr)
+economia_pct = (economia_litro / preco_posto * 100.0) if preco_posto > 0 else 0.0
+economia_total = economia_litro * float(volume_simulado)
+economia_mensal = economia_litro * float(consumo_mensal)
+economia_anual = economia_mensal * 12
+
+# Tabela de referência por volume
+_vols_ref = [1000, 2000, 3000, 4000, 5000]
+if volume_simulado not in _vols_ref and volume_simulado > 0:
+    _vols_ref = sorted(set(_vols_ref + [int(volume_simulado)]))
+tabela_economia = [
+    {"volume": v, "economia": economia_litro * v}
+    for v in _vols_ref
+    if v <= max(int(volume_simulado), 5000) or v == int(volume_simulado)
+]
+
+# Série mensal acumulada (12 meses) para o gráfico
+serie_mensal = []
+acum = 0.0
+for m in range(1, 13):
+    acum += economia_mensal
+    serie_mensal.append({"mes": m, "economia_mes": economia_mensal, "acumulado": acum})
+
+if incluir_economia:
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Economia / litro", format_brl(economia_litro))
+    m2.metric("Economia %", f"{economia_pct:.2f}%")
+    m3.metric("Economia mensal", format_brl(economia_mensal))
+    m4.metric("Economia em 12 meses", format_brl(economia_anual))
+
+    # Gráfico visual na tela
+    try:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        meses_lbl = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+                     "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+        vals_mes = [economia_mensal] * 12
+        vals_acum = [s["acumulado"] for s in serie_mensal]
+
+        fig, ax1 = plt.subplots(figsize=(9, 3.6))
+        x = range(12)
+        bars = ax1.bar(x, vals_mes, color="#e65c00", alpha=0.85, label="Economia no mês")
+        ax1.set_ylabel("Economia no mês (R$)", color="#e65c00")
+        ax1.tick_params(axis="y", labelcolor="#e65c00")
+        ax1.set_xticks(list(x))
+        ax1.set_xticklabels(meses_lbl)
+        ax1.set_ylim(0, max(vals_mes) * 1.35 if vals_mes else 1)
+
+        ax2 = ax1.twinx()
+        ax2.plot(x, vals_acum, color="#1a365d", marker="o", linewidth=2.2, label="Acumulado")
+        ax2.set_ylabel("Economia acumulada (R$)", color="#1a365d")
+        ax2.tick_params(axis="y", labelcolor="#1a365d")
+        ax2.set_ylim(0, max(vals_acum) * 1.15 if vals_acum else 1)
+
+        ax1.set_title(
+            f"Economia mensal estimada — {int(consumo_mensal):,} L/mês × {format_brl(economia_litro)}/L".replace(",", "."),
+            fontsize=11, color="#1a365d", pad=10,
+        )
+        ax1.spines["top"].set_visible(False)
+        fig.tight_layout()
+        st.pyplot(fig, clear_figure=True)
+        plt.close(fig)
+    except Exception as e_chart:
+        st.caption(f"Gráfico indisponível neste ambiente: {e_chart}")
+
+economia_dados = {
+    "incluir": incluir_economia,
+    "preco_posto": preco_posto,
+    "preco_trr": preco_trr,
+    "economia_litro": economia_litro,
+    "economia_pct": economia_pct,
+    "volume_simulado": int(volume_simulado),
+    "economia_total": economia_total,
+    "consumo_mensal": int(consumo_mensal),
+    "economia_mensal": economia_mensal,
+    "economia_anual": economia_anual,
+    "serie_mensal": serie_mensal,
+    "tabela": tabela_economia,
+    "fluido_ref": fluido or "Diesel",
+} if incluir_economia else {"incluir": False}
+
 # ==================== FORMA DE PAGAMENTO ====================
 st.markdown("**Forma de pagamento (parcelas)**")
 st.caption(
@@ -729,6 +859,7 @@ dados_pdf = {
     "valor_difal_prazo": valor_difal_prazo,
     "total_cliente_avista": total_cliente_avista,
     "total_cliente_prazo": total_cliente_prazo,
+    "economia": economia_dados,
 }
 
 incluir_capa = st.checkbox("Incluir capa no PDF", value=True)
