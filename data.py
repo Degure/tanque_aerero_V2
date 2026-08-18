@@ -274,7 +274,7 @@ OPCIONAIS: Dict[str, Dict[str, Any]] = {
 # ==================== VENDEDORES (inicial) ====================
 VENDEDORES_INICIAL: List[str] = [
     "Elvio Martins",
-    "Ana Lívia Godoy",
+    "Bruno Pantojo",
 ]
 
 # ==================== DADOS DA EMPRESA ====================
@@ -288,7 +288,7 @@ EMPRESA = {
     "telefone": "",  # preencher se tiver
     "email": "",
     "site": "https://www.casadofrentista.com.br",
-    "whatsapp": "",  # só números com DDI, ex: 5547999999999
+    "whatsapp": "554130162423",  # só números com DDI, ex: 5547999999999
     "ncm": "7309.90.00",
     "norma": "NBR 15.461",
     "garantia_meses": 6,
