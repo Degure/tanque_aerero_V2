@@ -345,7 +345,7 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
     logo_gp = None
     if os.path.exists(LOGO_CASA):
         try:
-            logo_casa = Image(LOGO_CASA, width=45*mm, height=8*mm)
+            logo_casa = Image(LOGO_CASA, width=28*mm, height=18*mm)
         except Exception:
             pass
     if os.path.exists(LOGO_GP):
@@ -626,6 +626,188 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         if contato_extra:
             story.append(Paragraph(" · ".join(contato_extra), styles["CorpoPequeno"]))
 
+        # ========== SIMULAÇÃO DE ECONOMIA ==========
+        eco = dados.get("economia") or {}
+        if eco.get("incluir"):
+            story.append(Spacer(1, 4*mm))
+            story.append(HRFlowable(width="100%", thickness=1, color=LARANJA, spaceBefore=2, spaceAfter=4))
+            story.append(Paragraph(
+                "SIMULAÇÃO DE ECONOMIA — ABASTECIMENTO VIA TRR",
+                styles["Subtitulo"],
+            ))
+            story.append(Paragraph(
+                f"Comprando <b>{eco.get('fluido_ref', 'Diesel')}</b> direto de uma TRR (com tanque próprio) "
+                f"em vez de abastecer no posto, sua frota economiza a cada litro.",
+                styles["Corpo"],
+            ))
+
+            pp = float(eco.get("preco_posto") or 0)
+            pt = float(eco.get("preco_trr") or 0)
+            el = float(eco.get("economia_litro") or 0)
+            ep = float(eco.get("economia_pct") or 0)
+            vol = int(eco.get("volume_simulado") or 0)
+            et = float(eco.get("economia_total") or 0)
+
+            cards = [[
+                Paragraph(
+                    f"<font size='8'>Preço médio no posto</font><br/>"
+                    f"<font size='12'><b>{format_brl(pp)}</b></font><font size='8'> /L</font>",
+                    styles["CorpoPequeno"],
+                ),
+                Paragraph(
+                    f"<font size='8'>Preço médio na TRR</font><br/>"
+                    f"<font size='12'><b>{format_brl(pt)}</b></font><font size='8'> /L</font>",
+                    styles["CorpoPequeno"],
+                ),
+                Paragraph(
+                    f"<font size='8'>Economia por litro</font><br/>"
+                    f"<font size='12' color='#e65c00'><b>{format_brl(el)}</b></font><font size='8'> /L</font>",
+                    styles["CorpoPequeno"],
+                ),
+                Paragraph(
+                    f"<font size='8'>Economia percentual</font><br/>"
+                    f"<font size='12' color='#276749'><b>{ep:.2f}%</b></font>",
+                    styles["CorpoPequeno"],
+                ),
+            ]]
+            t_cards = Table(cards, colWidths=[44*mm, 44*mm, 44*mm, 43*mm])
+            t_cards.setStyle(TableStyle([
+                ("BOX", (0, 0), (-1, -1), 0.8, AZUL_ESCURO),
+                ("INNERGRID", (0, 0), (-1, -1), 0.4, CINZA_BORDA),
+                ("BACKGROUND", (0, 0), (-1, -1), CINZA_CLARO),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ]))
+            story.append(t_cards)
+            story.append(Spacer(1, 3*mm))
+
+            # Destaque principal
+            story.append(Paragraph(
+                f"<font size='11'><b>Economize até {format_brl(et)}</b> ao abastecer "
+                f"<b>{vol:,} litros</b> via TRR "
+                f"(diferença de {format_brl(el)} por litro).</font>".replace(",", "."),
+                styles["Corpo"],
+            ))
+
+            # Economia mensal / anual
+            cons_m = int(eco.get("consumo_mensal") or 0)
+            eco_m = float(eco.get("economia_mensal") or 0)
+            eco_a = float(eco.get("economia_anual") or 0)
+            if cons_m > 0 and eco_m > 0:
+                story.append(Paragraph(
+                    f"<font size='10'>Com consumo estimado de <b>{cons_m:,} L/mês</b>: "
+                    f"economia de <font color='#e65c00'><b>{format_brl(eco_m)}</b></font> por mês · "
+                    f"<font color='#276749'><b>{format_brl(eco_a)}</b></font> em 12 meses.</font>".replace(",", "."),
+                    styles["Corpo"],
+                ))
+            story.append(Spacer(1, 2*mm))
+
+            # Gráfico de economia mensal (barras + linha acumulada)
+            try:
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.pyplot as plt
+                from io import BytesIO as _Bio
+
+                serie = eco.get("serie_mensal") or []
+                if not serie and eco_m > 0:
+                    acum = 0.0
+                    serie = []
+                    for m in range(1, 13):
+                        acum += eco_m
+                        serie.append({"mes": m, "economia_mes": eco_m, "acumulado": acum})
+
+                if serie:
+                    meses_lbl = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
+                                 "Jul", "Ago", "Set", "Out", "Nov", "Dez"]
+                    vals_mes = [float(s.get("economia_mes") or 0) for s in serie[:12]]
+                    vals_acum = [float(s.get("acumulado") or 0) for s in serie[:12]]
+                    while len(vals_mes) < 12:
+                        vals_mes.append(eco_m)
+                    while len(vals_acum) < 12:
+                        prev = vals_acum[-1] if vals_acum else 0
+                        vals_acum.append(prev + eco_m)
+
+                    fig, ax1 = plt.subplots(figsize=(7.2, 2.8), dpi=140)
+                    x = list(range(12))
+                    ax1.bar(x, vals_mes, color="#e65c00", alpha=0.88, width=0.65, label="Economia no mês")
+                    ax1.set_ylabel("No mês (R$)", color="#e65c00", fontsize=8)
+                    ax1.tick_params(axis="y", labelcolor="#e65c00", labelsize=7)
+                    ax1.set_xticks(x)
+                    ax1.set_xticklabels(meses_lbl, fontsize=7)
+                    ax1.set_ylim(0, max(vals_mes) * 1.35 if max(vals_mes) > 0 else 1)
+                    ax1.spines["top"].set_visible(False)
+                    ax1.spines["right"].set_visible(False)
+
+                    ax2 = ax1.twinx()
+                    ax2.plot(x, vals_acum, color="#1a365d", marker="o", markersize=3.5,
+                             linewidth=2, label="Acumulado")
+                    ax2.set_ylabel("Acumulado (R$)", color="#1a365d", fontsize=8)
+                    ax2.tick_params(axis="y", labelcolor="#1a365d", labelsize=7)
+                    ax2.set_ylim(0, max(vals_acum) * 1.15 if max(vals_acum) > 0 else 1)
+                    ax2.spines["top"].set_visible(False)
+
+                    ax1.set_title(
+                        "Economia mensal estimada com abastecimento via TRR",
+                        fontsize=9, color="#1a365d", pad=6,
+                    )
+                    fig.tight_layout(pad=0.4)
+                    buf = _Bio()
+                    fig.savefig(buf, format="png", bbox_inches="tight", facecolor="white")
+                    plt.close(fig)
+                    buf.seek(0)
+                    chart_img = Image(buf, width=170*mm, height=58*mm)
+                    story.append(chart_img)
+                    story.append(Spacer(1, 2*mm))
+            except Exception:
+                pass  # segue sem gráfico se matplotlib falhar
+
+            # Tabela por volume
+            tab = eco.get("tabela") or []
+            if tab:
+                rows_e = [[
+                    Paragraph("<b>Volume abastecido</b>", styles["CorpoPequeno"]),
+                    Paragraph("<b>Economia total</b>", styles["CorpoPequeno"]),
+                ]]
+                for row in tab:
+                    v = int(row.get("volume") or 0)
+                    e = float(row.get("economia") or 0)
+                    destaque = v == vol
+                    label_v = f"{v:,} L".replace(",", ".")
+                    if destaque:
+                        rows_e.append([
+                            Paragraph(f"<b>{label_v}</b> ← tanque / simulação", styles["CorpoPequeno"]),
+                            Paragraph(f"<b>{format_brl(e)}</b>", styles["Desconto"]),
+                        ])
+                    else:
+                        rows_e.append([
+                            Paragraph(label_v, styles["CorpoPequeno"]),
+                            Paragraph(format_brl(e), styles["CorpoPequeno"]),
+                        ])
+                t_eco = Table(rows_e, colWidths=[90*mm, 85*mm])
+                t_eco.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), AZUL_ESCURO),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("BOX", (0, 0), (-1, -1), 0.7, AZUL_ESCURO),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.3, CINZA_BORDA),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, CINZA_CLARO]),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 5),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                story.append(t_eco)
+
+            story.append(Paragraph(
+                "<font size='7'><i>* Simulação orientativa com base nos preços médios informados nesta proposta. "
+                "Valores de combustível oscilam conforme região e momento da compra.</i></font>",
+                styles["CorpoPequeno"],
+            ))
+
     # ========== ESPECIFICAÇÕES TÉCNICAS (modo completa) ==========
     if modo == "completa":
         story.append(Spacer(1, 4*mm))
@@ -790,6 +972,7 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         story.append(Paragraph("<font size='9'><b>• Descarregamento com guincho Munck por conta do cliente.</b></font>", styles["ItemLista"]))
         story.append(Paragraph("<font size='9'><b>• Preparação da base de apoio (concreto ou estrutura adequada).</b></font>", styles["ItemLista"]))
         story.append(Paragraph("<font size='9'><b>• Obtenção de licenças e alvarás locais, quando exigidos.</b></font>", styles["ItemLista"]))
+
 
         story.append(Paragraph("4. OBSERVAÇÕES GERAIS / CLÁUSULAS", styles["Subtitulo"]))
         story.append(Paragraph(
