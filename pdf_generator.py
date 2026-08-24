@@ -537,16 +537,16 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
         difal_pr = dados.get("difal_prazo") or {}
         difal_av = dados.get("difal_avista") or {}
 
-        if v_difal_pr > 0:
-            totais_data.append([
-                Paragraph("DIFAL (à prazo)", styles["ValorLabel"]),
-                Paragraph(format_brl(v_difal_pr), styles["ValorDestaque"]),
-            ])
-        if v_difal_av > 0:
-            totais_data.append([
-                Paragraph("DIFAL (à vista)", styles["ValorLabel"]),
-                Paragraph(format_brl(v_difal_av), styles["ValorDestaque"]),
-            ])
+        #if v_difal_pr > 0:
+        #    totais_data.append([
+        #        Paragraph("DIFAL (à prazo)", styles["ValorLabel"]),
+        #        Paragraph(format_brl(v_difal_pr), styles["ValorDestaque"]),
+        #    ])
+        #if v_difal_av > 0:
+        #    totais_data.append([
+        #        Paragraph("DIFAL (à vista)", styles["ValorLabel"]),
+        #        Paragraph(format_brl(v_difal_av), styles["ValorDestaque"]),
+        #    ])
 
         tc_pr = dados.get("total_cliente_prazo")
         tc_av = dados.get("total_cliente_avista")
