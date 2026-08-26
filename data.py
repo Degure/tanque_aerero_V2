@@ -481,11 +481,11 @@ IMAGEM_POR_TANQUE = {
     "6.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
     "7.500L": "imagens_produtos/tanques/tanque_horizontal_1.png",
     "10.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "12.000L": "imagens_produtos/tanques/tanque_horizontal_2.png",
-    "14.900L": "imagens_produtos/tanques/tanque_horizontal_2.png",
-    "20.000L": "imagens_produtos/tanques/tanque_bacia_1.png",
-    "30.000L": "imagens_produtos/tanques/tanque_bacia_2.png",
-    "BIPARTIDO 14.950L": "imagens_produtos/tanques/tanque_horizontal_2.png",
+    "12.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    "14.900L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    "20.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    "30.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    "BIPARTIDO 14.950L": "imagens_produtos/tanques/tanque_horizontal_1.png",
 }
 
 # --- Bacias por volume ---
@@ -497,11 +497,11 @@ IMAGEM_POR_BACIA = {
     "5.000L": "imagens_produtos/bacias/bacia_padrao.png",
     "6.000L": "imagens_produtos/bacias/bacia_padrao.png",
     "7.500L": "imagens_produtos/bacias/bacia_padrao.png",
-    "10.000L": "imagens_produtos/bacias/bacia_com_tanque.png",
-    "12.000L": "imagens_produtos/bacias/bacia_com_tanque.png",
-    "15.000L": "imagens_produtos/bacias/bacia_com_tanque.png",
-    "20.000L": "imagens_produtos/bacias/bacia_com_tanque.png",
-    "30.000L": "imagens_produtos/bacias/bacia_com_tanque.png",
+    "10.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    "12.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    "15.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    "20.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    "30.000L": "imagens_produtos/bacias/bacia_padrao.png",
 }
 
 # --- Bombas (por nome do produto) ---
