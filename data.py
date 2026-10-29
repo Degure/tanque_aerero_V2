@@ -508,17 +508,17 @@ IMAGEM_POR_BACIA = {
 IMAGEM_POR_BOMBA = {
     "SEM BOMBA": None,
     # Todas usam a mesma foto por enquanto — troque quando tiver fotos específicas
-    "BOMBA ABASTECIMENTO 60LPM - 220V": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO GILBARCO 45LPM - ELETRÔNICA SIMPLES": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO GILBARCO 45LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO GILBARCO 110LPM - ELETRÔNICA ANTI-EXPLOSÃO": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO WAYNE 3G 50LPM - ELETRÔNICA SIMPLES": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO WAYNE 3G 50LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/bomba_padrao.png",
-    "BOMBA ABASTECIMENTO WAYNE GLOBAL 50LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/bomba_padrao.png",
-    "INDUSTRIAL MECÂNICA 90 LPM - DIESEL": "imagens_produtos/bombas/bomba_padrao.png",
-    "INDUSTRIAL MECÂNICA ANTI-EXPLOSÃO 90LPM": "imagens_produtos/bombas/bomba_padrao.png",
-    "SKID ABASTECIMENTO TRIF. 60LPM": "imagens_produtos/bombas/bomba_padrao.png",
-    "SKID ABASTECIMENTO TRIF. 60LPM DUPLA FILTRAGEM": "imagens_produtos/bombas/bomba_padrao.png",
+    "BOMBA ABASTECIMENTO 60LPM - 220V": "imagens_produtos/bombas/BOMBA ABASTECIMENTO 60LPM - 220V.png",
+    "BOMBA ABASTECIMENTO GILBARCO 45LPM - ELETRÔNICA SIMPLES": "imagens_produtos/bombas/gilbarco-com-bico-2.png",
+    "BOMBA ABASTECIMENTO GILBARCO 45LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/bomba-de-abastecimento-dupla-eletronica-45l-min-trif-image.png",
+    "BOMBA ABASTECIMENTO GILBARCO 110LPM - ELETRÔNICA ANTI-EXPLOSÃO": "imagens_produtos/bombas/bomba-de-abastecimento-eletronica-110l-min-trif-a-prova-de-e.png",
+    "BOMBA ABASTECIMENTO WAYNE 3G 50LPM - ELETRÔNICA SIMPLES": "imagens_produtos/bombas/bomba-de-abastecimento-eletronica-wayne-3g-50l-min-com-bico.png",
+    "BOMBA ABASTECIMENTO WAYNE 3G 50LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/bomba-de-abastecimento-eletonica-wayne-3g-dupla-imagem-4.png",
+    "BOMBA ABASTECIMENTO WAYNE GLOBAL 50LPM - ELETRÔNICA DUPLA": "imagens_produtos/bombas/wayneglobal2.png",
+    "INDUSTRIAL MECÂNICA 90 LPM - DIESEL": "imagens_produtos/bombas/bomba-industrial-para-diesel-90l-min-220-380v-gp-company-i.png",
+    "INDUSTRIAL MECÂNICA ANTI-EXPLOSÃO 90LPM": "imagens_produtos/bombas/bomba-industrial-para-gasolina-90l-min-220-380v-gp-company.png",
+    "SKID ABASTECIMENTO TRIF. 60LPM": "imagens_produtos/bombas/skid-bomba-de-abastecimento-industrial-60l-min-trifasico-par.png",
+    "SKID ABASTECIMENTO TRIF. 60LPM DUPLA FILTRAGEM": "imagens_produtos/bombas/skid-bomba-de-abastecimento-industrial-60l-min-trifasico-com.png",
 }
 
 # --- Filtros ---
