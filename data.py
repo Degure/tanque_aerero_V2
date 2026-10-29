@@ -474,34 +474,35 @@ IMAGEM_PADRAO_FILTRO = "imagens_produtos/filtros/filtro_padrao.png"
 
 # --- Tanques por volume ---
 IMAGEM_POR_TANQUE = {
-    "1.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "3.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "4.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "5.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "6.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "7.500L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "10.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "12.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "14.900L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "20.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "30.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
-    "BIPARTIDO 14.950L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    #"1.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    #"3.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    #"4.000L": "imagens_produtos/tanques/tanque_horizontal_1.png",
+    "5.000L": "01-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "6.000L": "02-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "7.500L": "03-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "10.000L": "2 (1).png",
+    "12.000L": "2 (1).png",
+    "14.900L": "5.png",
+    "20.000L": "tanque_paisagem.png",
+    "30.000L": "tanque_paisagem.png",
+
 }
 
 # --- Bacias por volume ---
 IMAGEM_POR_BACIA = {
     "SEM BACIA": None,
-    "1.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "3.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "4.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    #"1.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    #"3.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    #"4.000L": "imagens_produtos/bacias/bacia_padrao.png",
     "5.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "6.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "7.500L": "imagens_produtos/bacias/bacia_padrao.png",
-    "10.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "12.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "15.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "20.000L": "imagens_produtos/bacias/bacia_padrao.png",
-    "30.000L": "imagens_produtos/bacias/bacia_padrao.png",
+    "5.000L": "02-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "6.000L": "02-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "7.500L": "02-tanque-de-combustivel-aereo-5000l-com-bacia-de-contencao-gp-company.png",
+    "10.000L": "3.png",
+    "12.000L": "3.png",
+    "15.000L": "3.png",
+    "20.000L": "3.png",
+    "30.000L": "3.png",
 }
 
 # --- Bombas (por nome do produto) ---
