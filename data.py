@@ -524,12 +524,12 @@ IMAGEM_POR_BOMBA = {
 # --- Filtros ---
 IMAGEM_POR_FILTRO = {
     "SEM FILTRO": None,
-    "Filtro de 1'' para Filtragem de Partículas Gp Company": "imagens_produtos/filtros/5332-1-filtro de linha.jpg",
-    "FOGUETINHO DESIDATRADOR 60LPM": "imagens_produtos/filtros/filtro_padrao.png",
-    "FOGUETINHO DESIDATRADOR 100LPM": "imagens_produtos/filtros/filtro_padrao.png",
-    "FOGUETINHO DESIDATRADOR 150LPM": "imagens_produtos/filtros/filtro_padrao.png",
-    "FOGUETINHO COALESCENTE 100LPM": "imagens_produtos/filtros/filtro_padrao.png",
-    "FOGUETINHO DESIDATRADOR DUPLO 100LPM": "imagens_produtos/filtros/filtro_padrao.png",
+    "Filtro de 1'' para Filtragem de Partículas Gp Company": "imagens_produtos/filtros/5332-2.png",
+    "FOGUETINHO DESIDATRADOR 60LPM": "imagens_produtos/filtros/08-filtro-foguetinho-desidratador-prata-80-l-min-gp-company.png",
+    "FOGUETINHO DESIDATRADOR 100LPM": "imagens_produtos/filtros/filtro-foguetinho-para-oleo-diesel-100lmin-preto-gp-company.png",
+    "FOGUETINHO DESIDATRADOR 150LPM": "imagens_produtos/filtros/filtro-foguetinho-para-oleo-diesel-150lmin-preto-gp-company.png",
+    "FOGUETINHO COALESCENTE 100LPM": "imagens_produtos/filtros/filtro-foguetinho-coalescente-fc-100l-min-gp-company-image.png",
+    "FOGUETINHO DESIDATRADOR DUPLO 100LPM": "imagens_produtos/filtros/filtro-foguetinho-duplo-gp-2.png",
 }
 
 
