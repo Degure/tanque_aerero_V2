@@ -46,6 +46,151 @@ def salvar_vendedores(lista: List[str]):
         json.dump(lista, f, ensure_ascii=False, indent=2)
 
 
+def _projeto_padrao(n: int = 1) -> dict:
+    """Estrutura de um projeto (conjunto tanque/bacia/bomba...) dentro da proposta."""
+    return {
+        "nome": f"Projeto {n}",
+        "tanque_key": "10.000L",
+        "qtd_tanque": 1,
+        "desc_tanque": 0.0,
+        "bacia_key": "10.000L",
+        "qtd_bacia": 1,
+        "desc_bacia": 0.0,
+        "bomba_key": "SEM BOMBA",
+        "qtd_bomba": 1,
+        "desc_bomba": 0.0,
+        "filtro_key": "SEM FILTRO",
+        "qtd_filtro": 1,
+        "desc_filtro": 0.0,
+        "elemento_key": "SEM ELEMENTO",
+        "qtd_elemento": 1,
+        "desc_elemento": 0.0,
+        "opcionais": {},  # nome -> {preco, descricao, imagem, qtd}
+        "extra_desc": "",
+        "extra_qtd": 0,
+        "extra_valor": 0.0,
+        "condicoes_especificas": "",
+    }
+
+
+def _garantir_projetos():
+    if "projetos" not in st.session_state or not st.session_state.projetos:
+        st.session_state.projetos = [_projeto_padrao(1)]
+    if "projeto_idx" not in st.session_state:
+        st.session_state.projeto_idx = 0
+    # corrige índice fora da faixa
+    if st.session_state.projeto_idx >= len(st.session_state.projetos):
+        st.session_state.projeto_idx = max(0, len(st.session_state.projetos) - 1)
+
+
+def _montar_itens_projeto(pj: dict) -> list:
+    """Monta linhas de itens de um projeto (com quantidades)."""
+    itens = []
+    tk = pj.get("tanque_key", "10.000L")
+    tinfo = TANQUES.get(tk, {})
+    preco_t = float(tinfo.get("preco", 0)) * (1 - float(pj.get("desc_tanque", 0)) / 100.0)
+    # se houver preço forçado salvo
+    if pj.get("preco_tanque") is not None:
+        preco_t = float(pj["preco_tanque"])
+    qtd_t = max(1, int(pj.get("qtd_tanque") or 1))
+    itens.append({
+        "descricao": f"TANQUE AÉREO – AÇO CARBONO ASTM A-36 – {tk} (GP Company)",
+        "qtd": qtd_t,
+        "unitario": preco_t,
+        "total": preco_t * qtd_t,
+        "projeto": pj.get("nome", ""),
+    })
+
+    bk = pj.get("bacia_key", "SEM BACIA")
+    binfo = BACIAS.get(bk, {})
+    preco_b = float(binfo.get("preco", 0)) * (1 - float(pj.get("desc_bacia", 0)) / 100.0)
+    if pj.get("preco_bacia") is not None:
+        preco_b = float(pj["preco_bacia"])
+    qtd_b = max(0, int(pj.get("qtd_bacia") or 0))
+    if bk != "SEM BACIA" and (preco_b > 0 or qtd_b > 0):
+        qtd_b = max(1, qtd_b)
+        itens.append({
+            "descricao": f"BACIA DE CONTENÇÃO – {bk} (GP Company)",
+            "qtd": qtd_b,
+            "unitario": preco_b,
+            "total": preco_b * qtd_b,
+            "projeto": pj.get("nome", ""),
+        })
+
+    bok = pj.get("bomba_key", "SEM BOMBA")
+    preco_bo = float(BOMBAS.get(bok, 0)) * (1 - float(pj.get("desc_bomba", 0)) / 100.0)
+    if pj.get("preco_bomba") is not None:
+        preco_bo = float(pj["preco_bomba"])
+    qtd_bo = max(0, int(pj.get("qtd_bomba") or 0))
+    if bok != "SEM BOMBA" and (preco_bo > 0 or qtd_bo > 0):
+        qtd_bo = max(1, qtd_bo)
+        itens.append({
+            "descricao": bok,
+            "qtd": qtd_bo,
+            "unitario": preco_bo,
+            "total": preco_bo * qtd_bo,
+            "projeto": pj.get("nome", ""),
+        })
+
+    fk = pj.get("filtro_key", "SEM FILTRO")
+    preco_f = float(FILTROS.get(fk, 0)) * (1 - float(pj.get("desc_filtro", 0)) / 100.0)
+    if pj.get("preco_filtro") is not None:
+        preco_f = float(pj["preco_filtro"])
+    qtd_f = max(0, int(pj.get("qtd_filtro") or 0))
+    if fk != "SEM FILTRO" and (preco_f > 0 or qtd_f > 0):
+        qtd_f = max(1, qtd_f)
+        itens.append({
+            "descricao": fk,
+            "qtd": qtd_f,
+            "unitario": preco_f,
+            "total": preco_f * qtd_f,
+            "projeto": pj.get("nome", ""),
+        })
+
+    ek = pj.get("elemento_key", "SEM ELEMENTO")
+    preco_e = float(ELEMENTOS.get(ek, 0)) * (1 - float(pj.get("desc_elemento", 0)) / 100.0)
+    if pj.get("preco_elemento") is not None:
+        preco_e = float(pj["preco_elemento"])
+    qtd_e = max(0, int(pj.get("qtd_elemento") or 0))
+    if ek != "SEM ELEMENTO" and (preco_e > 0 or qtd_e > 0):
+        qtd_e = max(1, qtd_e)
+        itens.append({
+            "descricao": ek,
+            "qtd": qtd_e,
+            "unitario": preco_e,
+            "total": preco_e * qtd_e,
+            "projeto": pj.get("nome", ""),
+        })
+
+    for nome_op, info_op in (pj.get("opcionais") or {}).items():
+        preco_op = float(info_op.get("preco") or 0)
+        qtd_op = max(1, int(info_op.get("qtd") or 1))
+        if info_op.get("descricao"):
+            desc_op = f"OPCIONAL: {nome_op} – {info_op['descricao']}"
+        else:
+            desc_op = f"OPCIONAL: {nome_op}"
+        itens.append({
+            "descricao": desc_op,
+            "qtd": qtd_op,
+            "unitario": preco_op,
+            "total": preco_op * qtd_op,
+            "projeto": pj.get("nome", ""),
+        })
+
+    if int(pj.get("extra_qtd") or 0) > 0 and (pj.get("extra_desc") or "").strip():
+        q = int(pj["extra_qtd"])
+        v = float(pj.get("extra_valor") or 0)
+        itens.append({
+            "descricao": pj["extra_desc"].strip(),
+            "qtd": q,
+            "unitario": v,
+            "total": q * v,
+            "projeto": pj.get("nome", ""),
+        })
+    return itens
+
+
+
 # ==================== SIDEBAR - CONFIGURAÇÕES ====================
 with st.sidebar:
     st.image("logo_casa.png", width=180)
@@ -163,7 +308,53 @@ with col3:
 
 
 # ==================== SELEÇÃO DE PRODUTOS ====================
-st.subheader("2. Seleção de Produtos")
+st.subheader("2. Projetos / Equipamentos")
+st.caption(
+    "Uma proposta pode ter **vários projetos** para o mesmo cliente "
+    "(ex.: um conjunto 15.000 L + bacia e outro 5.000 L sem bacia). "
+    "Em cada projeto você define produtos, **quantidades** e, se quiser, condições específicas."
+)
+
+_garantir_projetos()
+
+# ----- Navegação entre projetos -----
+nav1, nav2, nav3, nav4 = st.columns([2.2, 1, 1, 1])
+with nav1:
+    nomes = [p.get("nome", f"Projeto {i+1}") for i, p in enumerate(st.session_state.projetos)]
+    escolha = st.radio(
+        "Projeto ativo",
+        options=list(range(len(nomes))),
+        format_func=lambda i: nomes[i],
+        horizontal=True,
+        key="radio_projeto",
+        index=min(st.session_state.projeto_idx, len(nomes) - 1),
+    )
+    st.session_state.projeto_idx = escolha
+with nav2:
+    if st.button("➕ Novo projeto", use_container_width=True):
+        n = len(st.session_state.projetos) + 1
+        st.session_state.projetos.append(_projeto_padrao(n))
+        st.session_state.projeto_idx = n - 1
+        st.rerun()
+with nav3:
+    if st.button("📋 Duplicar", use_container_width=True):
+        import copy
+        base = copy.deepcopy(st.session_state.projetos[st.session_state.projeto_idx])
+        base["nome"] = base.get("nome", "Projeto") + " (cópia)"
+        st.session_state.projetos.append(base)
+        st.session_state.projeto_idx = len(st.session_state.projetos) - 1
+        st.rerun()
+with nav4:
+    if len(st.session_state.projetos) > 1 and st.button("🗑️ Remover", use_container_width=True):
+        st.session_state.projetos.pop(st.session_state.projeto_idx)
+        st.session_state.projeto_idx = min(st.session_state.projeto_idx, len(st.session_state.projetos) - 1)
+        st.rerun()
+
+idx = st.session_state.projeto_idx
+pj = st.session_state.projetos[idx]
+pk = f"p{idx}"  # prefixo de keys dos widgets deste projeto
+
+pj["nome"] = st.text_input("Nome do projeto", value=pj.get("nome", f"Projeto {idx+1}"), key=f"{pk}_nome")
 
 def _idx(options, key, fallback=0):
     try:
@@ -171,45 +362,45 @@ def _idx(options, key, fallback=0):
     except (ValueError, AttributeError):
         return fallback
 
-# Preferência: template > padrão
+# Preferência inicial do template só no 1º projeto vazio
 _tpl = template or {}
-_tk = _tpl.get("tanque", "10.000L")
-_bk = _tpl.get("bacia", "10.000L")
-_bok = _tpl.get("bomba", "SEM BOMBA")
-_fk = _tpl.get("filtro", "SEM FILTRO")
-_ek = _tpl.get("elemento", "SEM ELEMENTO")
-
-col_t, col_b = st.columns(2)
+_tk = pj.get("tanque_key") or _tpl.get("tanque", "10.000L")
+_bk = pj.get("bacia_key") or _tpl.get("bacia", "10.000L")
+_bok = pj.get("bomba_key") or _tpl.get("bomba", "SEM BOMBA")
+_fk = pj.get("filtro_key") or _tpl.get("filtro", "SEM FILTRO")
+_ek = pj.get("elemento_key") or _tpl.get("elemento", "SEM ELEMENTO")
 
 st.caption(
-    "Desconto **por item** reduz o valor do produto (já entra no total). "
-    "O desconto **à vista** (mais abaixo) é um benefício extra, só se o cliente pagar à vista."
+    "Desconto **por item** reduz o valor unitário. "
+    "Quantidade multiplica o total da linha. "
+    "O desconto **à vista** (seção 3) vale para a proposta inteira."
 )
 
+col_t, col_b = st.columns(2)
 with col_t:
     tanque_key = st.selectbox(
         "Tanque Aéreo",
         options=list(TANQUES.keys()),
         index=_idx(TANQUES.keys(), _tk, list(TANQUES.keys()).index("10.000L") if "10.000L" in TANQUES else 0),
+        key=f"{pk}_tanque",
     )
     tinfo = TANQUES[tanque_key]
     st.caption(
         f"Tabela: {format_brl(float(tinfo['preco']))} · "
         f"Ø {tinfo['diametro']} · Comp. {tinfo['comprimento']} · Chapa {tinfo['chapa']} · {tinfo['peso']} kg"
     )
+    qtd_tanque = st.number_input("Qtd tanque", min_value=1, value=int(pj.get("qtd_tanque") or 1), step=1, key=f"{pk}_qtd_t")
     desc_tanque = st.number_input(
         "Desconto tanque (%)",
-        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
-        key=f"d_tanque_{tanque_key}",
+        min_value=0.0, max_value=100.0, value=float(pj.get("desc_tanque") or 0), step=0.5,
+        key=f"{pk}_d_t",
     )
     preco_sug_t = float(tinfo["preco"]) * (1 - desc_tanque / 100.0)
     preco_tanque = st.number_input(
-        "Preço final Tanque (R$)",
-        value=float(preco_sug_t),
-        min_value=0.0,
-        step=10.0,
-        key=f"p_tanque_{tanque_key}_{desc_tanque}",
-        help="Pode ajustar manualmente além do % de desconto.",
+        "Preço unit. Tanque (R$)",
+        value=float(pj.get("preco_tanque") if pj.get("preco_tanque") is not None else preco_sug_t),
+        min_value=0.0, step=10.0,
+        key=f"{pk}_p_t",
     )
 
 with col_b:
@@ -217,6 +408,7 @@ with col_b:
         "Bacia de Contenção",
         options=list(BACIAS.keys()),
         index=_idx(BACIAS.keys(), _bk, list(BACIAS.keys()).index("10.000L") if "10.000L" in BACIAS else 0),
+        key=f"{pk}_bacia",
     )
     binfo = BACIAS[bacia_key]
     if bacia_key != "SEM BACIA":
@@ -226,142 +418,149 @@ with col_b:
         )
     else:
         st.caption("Sem bacia de contenção")
+    qtd_bacia = st.number_input(
+        "Qtd bacia", min_value=0, value=int(pj.get("qtd_bacia") or (1 if bacia_key != "SEM BACIA" else 0)), step=1, key=f"{pk}_qtd_b"
+    )
     desc_bacia = st.number_input(
         "Desconto bacia (%)",
-        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
-        key=f"d_bacia_{bacia_key}",
+        min_value=0.0, max_value=100.0, value=float(pj.get("desc_bacia") or 0), step=0.5,
+        key=f"{pk}_d_b",
     )
     preco_sug_b = float(binfo["preco"]) * (1 - desc_bacia / 100.0)
     preco_bacia = st.number_input(
-        "Preço final Bacia (R$)",
-        value=float(preco_sug_b),
-        min_value=0.0,
-        step=10.0,
-        key=f"p_bacia_{bacia_key}_{desc_bacia}",
+        "Preço unit. Bacia (R$)",
+        value=float(pj.get("preco_bacia") if pj.get("preco_bacia") is not None else preco_sug_b),
+        min_value=0.0, step=10.0,
+        key=f"{pk}_p_b",
     )
 
 col_bo, col_f, col_e = st.columns(3)
-
 with col_bo:
-    bomba_key = st.selectbox("Bomba de Abastecimento", options=list(BOMBAS.keys()), index=_idx(BOMBAS.keys(), _bok, 0))
+    bomba_key = st.selectbox("Bomba de Abastecimento", options=list(BOMBAS.keys()), index=_idx(BOMBAS.keys(), _bok, 0), key=f"{pk}_bomba")
     st.caption(f"Tabela: {format_brl(float(BOMBAS[bomba_key]))}")
-    desc_bomba = st.number_input(
-        "Desconto bomba (%)",
-        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
-        key=f"d_bomba_{bomba_key}",
-    )
+    qtd_bomba = st.number_input("Qtd bomba", min_value=0, value=int(pj.get("qtd_bomba") or (0 if bomba_key == "SEM BOMBA" else 1)), step=1, key=f"{pk}_qtd_bo")
+    desc_bomba = st.number_input("Desconto bomba (%)", min_value=0.0, max_value=100.0, value=float(pj.get("desc_bomba") or 0), step=0.5, key=f"{pk}_d_bo")
     preco_sug_bo = float(BOMBAS[bomba_key]) * (1 - desc_bomba / 100.0)
-    preco_bomba = st.number_input(
-        "Preço final Bomba (R$)",
-        value=float(preco_sug_bo),
-        min_value=0.0,
-        step=10.0,
-        key=f"p_bomba_{bomba_key}_{desc_bomba}",
-    )
+    preco_bomba = st.number_input("Preço unit. Bomba (R$)", value=float(pj.get("preco_bomba") if pj.get("preco_bomba") is not None else preco_sug_bo), min_value=0.0, step=10.0, key=f"{pk}_p_bo")
 
 with col_f:
-    filtro_key = st.selectbox("Filtro", options=list(FILTROS.keys()), index=_idx(FILTROS.keys(), _fk, 0))
+    filtro_key = st.selectbox("Filtro", options=list(FILTROS.keys()), index=_idx(FILTROS.keys(), _fk, 0), key=f"{pk}_filtro")
     st.caption(f"Tabela: {format_brl(float(FILTROS[filtro_key]))}")
-    desc_filtro = st.number_input(
-        "Desconto filtro (%)",
-        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
-        key=f"d_filtro_{filtro_key}",
-    )
+    qtd_filtro = st.number_input("Qtd filtro", min_value=0, value=int(pj.get("qtd_filtro") or (0 if filtro_key == "SEM FILTRO" else 1)), step=1, key=f"{pk}_qtd_f")
+    desc_filtro = st.number_input("Desconto filtro (%)", min_value=0.0, max_value=100.0, value=float(pj.get("desc_filtro") or 0), step=0.5, key=f"{pk}_d_f")
     preco_sug_f = float(FILTROS[filtro_key]) * (1 - desc_filtro / 100.0)
-    preco_filtro = st.number_input(
-        "Preço final Filtro (R$)",
-        value=float(preco_sug_f),
-        min_value=0.0,
-        step=10.0,
-        key=f"p_filtro_{filtro_key}_{desc_filtro}",
-    )
+    preco_filtro = st.number_input("Preço unit. Filtro (R$)", value=float(pj.get("preco_filtro") if pj.get("preco_filtro") is not None else preco_sug_f), min_value=0.0, step=10.0, key=f"{pk}_p_f")
 
 with col_e:
-    elemento_key = st.selectbox("Elemento Filtrante", options=list(ELEMENTOS.keys()), index=_idx(ELEMENTOS.keys(), _ek, 0))
+    elemento_key = st.selectbox("Elemento Filtrante", options=list(ELEMENTOS.keys()), index=_idx(ELEMENTOS.keys(), _ek, 0), key=f"{pk}_elem")
     st.caption(f"Tabela: {format_brl(float(ELEMENTOS[elemento_key]))}")
-    desc_elemento = st.number_input(
-        "Desconto elemento (%)",
-        min_value=0.0, max_value=100.0, value=0.0, step=0.5,
-        key=f"d_elem_{elemento_key}",
-    )
+    qtd_elemento = st.number_input("Qtd elemento", min_value=0, value=int(pj.get("qtd_elemento") or (0 if elemento_key == "SEM ELEMENTO" else 1)), step=1, key=f"{pk}_qtd_e")
+    desc_elemento = st.number_input("Desconto elemento (%)", min_value=0.0, max_value=100.0, value=float(pj.get("desc_elemento") or 0), step=0.5, key=f"{pk}_d_e")
     preco_sug_e = float(ELEMENTOS[elemento_key]) * (1 - desc_elemento / 100.0)
-    preco_elemento = st.number_input(
-        "Preço final Elemento (R$)",
-        value=float(preco_sug_e),
-        min_value=0.0,
-        step=10.0,
-        key=f"p_elem_{elemento_key}_{desc_elemento}",
-    )
+    preco_elemento = st.number_input("Preço unit. Elemento (R$)", value=float(pj.get("preco_elemento") if pj.get("preco_elemento") is not None else preco_sug_e), min_value=0.0, step=10.0, key=f"{pk}_p_e")
 
-# ==================== PRODUTOS OPCIONAIS (checkbox) ====================
-st.markdown("**Produtos opcionais**")
-st.caption("Marque os itens que deseja incluir no orçamento. O preço pode ser ajustado.")
-
-opcionais_selecionados = {}  # nome -> preco final
+# Opcionais deste projeto
+st.markdown("**Produtos opcionais (deste projeto)**")
+opcionais_selecionados = {}
 if OPCIONAIS:
     for nome_op, info_op in OPCIONAIS.items():
-        col_ck, col_pr, col_ds = st.columns([2, 1, 3])
+        col_ck, col_q, col_pr, col_ds = st.columns([2, 0.7, 1, 2.5])
+        prev = (pj.get("opcionais") or {}).get(nome_op)
         with col_ck:
-            marcado = st.checkbox(nome_op, value=False, key=f"opt_{nome_op}")
+            marcado = st.checkbox(nome_op, value=bool(prev), key=f"{pk}_opt_{nome_op}")
+        with col_q:
+            qtd_op = st.number_input("Qtd", min_value=1, value=int((prev or {}).get("qtd") or 1), step=1, key=f"{pk}_optq_{nome_op}", label_visibility="collapsed")
         with col_pr:
             preco_op = st.number_input(
                 "R$",
-                value=float(info_op.get("preco", 0)),
                 min_value=0.0,
+                value=float((prev or {}).get("preco", info_op.get("preco", 0))),
                 step=50.0,
-                key=f"opt_preco_{nome_op}",
+                key=f"{pk}_optp_{nome_op}",
                 label_visibility="collapsed",
             )
         with col_ds:
             if info_op.get("descricao"):
-                st.caption(info_op["descricao"])
-            # Mini preview da foto do opcional (se existir)
-            img_op = info_op.get("imagem")
-            if img_op and os.path.exists(img_op):
-                st.image(img_op, width=120)
-            elif img_op:
-                st.caption(f"⚠️ Imagem não encontrada: {img_op}")
+                st.caption(info_op["descricao"][:120] + ("…" if len(info_op.get("descricao", "")) > 120 else ""))
         if marcado:
             opcionais_selecionados[nome_op] = {
                 "preco": preco_op,
                 "descricao": info_op.get("descricao", ""),
                 "imagem": info_op.get("imagem"),
+                "qtd": qtd_op,
             }
-else:
-    st.caption("Nenhum opcional cadastrado em data.py")
 
-# Item extra livre (fora da lista de opcionais)
-st.markdown("**Item avulso (texto livre)**")
-extra_desc = st.text_input("Descrição do item extra", value="")
-extra_qtd = st.number_input("Qtd extra", min_value=0, value=0, step=1)
-extra_valor = st.number_input("Valor unitário extra (R$)", min_value=0.0, value=0.0, step=10.0)
+st.markdown("**Item avulso (deste projeto)**")
+extra_desc = st.text_input("Descrição do item extra", value=pj.get("extra_desc") or "", key=f"{pk}_ex_d")
+extra_qtd = st.number_input("Qtd extra", min_value=0, value=int(pj.get("extra_qtd") or 0), step=1, key=f"{pk}_ex_q")
+extra_valor = st.number_input("Valor unitário extra (R$)", min_value=0.0, value=float(pj.get("extra_valor") or 0), step=10.0, key=f"{pk}_ex_v")
 
-# ==================== GALERIA DE IMAGENS (produtos + opcionais marcados) ====================
-st.markdown("**Imagens dos produtos selecionados**")
+condicoes_especificas = st.text_area(
+    "Condições específicas deste projeto (opcional)",
+    value=pj.get("condicoes_especificas") or "",
+    key=f"{pk}_cond",
+    help="Ex.: prazo de fabricação diferente, frete particular, observação técnica. Vai no PDF só neste projeto.",
+    height=80,
+)
+
+# Persiste o projeto ativo
+st.session_state.projetos[idx] = {
+    "nome": pj["nome"],
+    "tanque_key": tanque_key,
+    "qtd_tanque": int(qtd_tanque),
+    "desc_tanque": float(desc_tanque),
+    "preco_tanque": float(preco_tanque),
+    "bacia_key": bacia_key,
+    "qtd_bacia": int(qtd_bacia),
+    "desc_bacia": float(desc_bacia),
+    "preco_bacia": float(preco_bacia),
+    "bomba_key": bomba_key,
+    "qtd_bomba": int(qtd_bomba),
+    "desc_bomba": float(desc_bomba),
+    "preco_bomba": float(preco_bomba),
+    "filtro_key": filtro_key,
+    "qtd_filtro": int(qtd_filtro),
+    "desc_filtro": float(desc_filtro),
+    "preco_filtro": float(preco_filtro),
+    "elemento_key": elemento_key,
+    "qtd_elemento": int(qtd_elemento),
+    "desc_elemento": float(desc_elemento),
+    "preco_elemento": float(preco_elemento),
+    "opcionais": opcionais_selecionados,
+    "extra_desc": extra_desc,
+    "extra_qtd": int(extra_qtd),
+    "extra_valor": float(extra_valor),
+    "condicoes_especificas": condicoes_especificas,
+}
+pj = st.session_state.projetos[idx]
+
+# Galeria do projeto ativo
+st.markdown("**Imagens do projeto ativo**")
 imagens_sel = get_imagens_selecionadas(tanque_key, bacia_key, bomba_key, filtro_key)
-
-# Inclui fotos dos opcionais marcados
 for nome_op, info_op in opcionais_selecionados.items():
     img_op = info_op.get("imagem")
     if img_op:
         imagens_sel.append((f"Opcional: {nome_op}", img_op))
-
-imagens_existentes = [(titulo, path) for titulo, path in imagens_sel if path and os.path.exists(path)]
-
+imagens_existentes = [(t, p) for t, p in imagens_sel if p and os.path.exists(p)]
 if imagens_existentes:
     cols_img = st.columns(min(len(imagens_existentes), 4))
-    for idx, (titulo, path) in enumerate(imagens_existentes):
-        with cols_img[idx % len(cols_img)]:
-            st.image(path, use_container_width=True, caption=titulo)
-    st.caption("* Imagens meramente ilustrativas – GP Company · entram no PDF da proposta")
+    for i_img, (titulo, path_img) in enumerate(imagens_existentes):
+        with cols_img[i_img % len(cols_img)]:
+            st.image(path_img, use_container_width=True, caption=titulo)
 else:
-    st.caption(
-        "Nenhuma imagem encontrada. Coloque fotos em "
-        "`imagens_produtos/tanques|bacias|bombas|filtros|opcionais/`."
-    )
+    st.caption("Nenhuma imagem encontrada para este projeto.")
 
+# Lista resumida de todos os projetos (navegação visual)
+with st.expander("Ver todos os projetos desta proposta", expanded=len(st.session_state.projetos) > 1):
+    for i, p in enumerate(st.session_state.projetos):
+        sub = sum(x["total"] for x in _montar_itens_projeto(p))
+        marca = "👉 " if i == idx else ""
+        st.markdown(
+            f"{marca}**{p.get('nome', f'Projeto {i+1}')}** — "
+            f"Tanque {p.get('tanque_key')} (x{p.get('qtd_tanque', 1)}) · "
+            f"Bacia {p.get('bacia_key')} · Subtotal {format_brl(sub)}"
+        )
 
-# ==================== DESCONTOS E FRETE ====================
 st.subheader("3. Descontos, Frete e Observações")
 
 col_d1, col_d2, col_d3 = st.columns(3)
@@ -586,81 +785,44 @@ else:
     st.success(f"Soma dos percentuais: **{soma_pct:.1f}%**")
 
 
-# ==================== CÁLCULOS ====================
+# ==================== CÁLCULOS (todos os projetos) ====================
+projetos_detalhe = []
 itens = []
-
-# Tanque
-itens.append({
-    "descricao": f"TANQUE AÉREO – AÇO CARBONO ASTM A-36 – {tanque_key} (GP Company)",
-    "qtd": 1,
-    "unitario": preco_tanque,
-    "total": preco_tanque,
-})
-
-# Bacia
-if bacia_key != "SEM BACIA" or preco_bacia > 0:
-    itens.append({
-        "descricao": f"BACIA DE CONTENÇÃO – {bacia_key} (GP Company)",
-        "qtd": 1,
-        "unitario": preco_bacia,
-        "total": preco_bacia,
+peso_total = 0
+for p in st.session_state.projetos:
+    itens_p = _montar_itens_projeto(p)
+    sub = sum(x["total"] for x in itens_p)
+    imgs = get_imagens_selecionadas(
+        p.get("tanque_key", "10.000L"),
+        p.get("bacia_key", "SEM BACIA"),
+        p.get("bomba_key", "SEM BOMBA"),
+        p.get("filtro_key", "SEM FILTRO"),
+    )
+    for nome_op, info_op in (p.get("opcionais") or {}).items():
+        if info_op.get("imagem"):
+            imgs.append((f"Opcional: {nome_op}", info_op["imagem"]))
+    projetos_detalhe.append({
+        "nome": p.get("nome", "Projeto"),
+        "itens": itens_p,
+        "subtotal": sub,
+        "imagens": imgs,
+        "condicoes_especificas": (p.get("condicoes_especificas") or "").strip(),
+        "tanque_key": p.get("tanque_key"),
+        "bacia_key": p.get("bacia_key"),
+        "bomba_key": p.get("bomba_key"),
+        "filtro_key": p.get("filtro_key"),
     })
-
-# Bomba
-if bomba_key != "SEM BOMBA" or preco_bomba > 0:
-    itens.append({
-        "descricao": bomba_key,
-        "qtd": 1,
-        "unitario": preco_bomba,
-        "total": preco_bomba,
-    })
-
-# Filtro
-if filtro_key != "SEM FILTRO" or preco_filtro > 0:
-    itens.append({
-        "descricao": filtro_key,
-        "qtd": 1,
-        "unitario": preco_filtro,
-        "total": preco_filtro,
-    })
-
-# Elemento
-if elemento_key != "SEM ELEMENTO" or preco_elemento > 0:
-    itens.append({
-        "descricao": elemento_key,
-        "qtd": 1,
-        "unitario": preco_elemento,
-        "total": preco_elemento,
-    })
-
-# Opcionais marcados (checkbox) — descrição completa, sem corte
-for nome_op, info_op in opcionais_selecionados.items():
-    if info_op.get("descricao"):
-        desc_op = f"OPCIONAL: {nome_op} – {info_op['descricao']}"
-    else:
-        desc_op = f"OPCIONAL: {nome_op}"
-    itens.append({
-        "descricao": desc_op,
-        "qtd": 1,
-        "unitario": info_op["preco"],
-        "total": info_op["preco"],
-    })
-
-# Item avulso (texto livre)
-if extra_qtd > 0 and extra_desc.strip():
-    itens.append({
-        "descricao": extra_desc.strip(),
-        "qtd": extra_qtd,
-        "unitario": extra_valor,
-        "total": extra_qtd * extra_valor,
-    })
+    itens.extend(itens_p)
+    tinfo_p = TANQUES.get(p.get("tanque_key"), {})
+    binfo_p = BACIAS.get(p.get("bacia_key"), {})
+    peso_total += int(tinfo_p.get("peso") or 0) * max(1, int(p.get("qtd_tanque") or 1))
+    if p.get("bacia_key") != "SEM BACIA":
+        peso_total += int(binfo_p.get("peso") or 0) * max(1, int(p.get("qtd_bacia") or 1))
 
 total_produtos = sum(i["total"] for i in itens)
 valor_desconto = total_produtos * (desconto_pct / 100.0)
 total_avista = total_produtos - valor_desconto
 total_geral = total_avista + frete_valor  # frete normalmente não entra no desconto à vista
-
-peso_total = tinfo.get("peso", 0) + binfo.get("peso", 0)
 
 # ----- DIFAL -----
 # À vista → base NF = (produtos − desc. à vista) + frete
@@ -820,6 +982,7 @@ modo_pdf = modo_map[modo]
 
 # Monta dict de dados para o PDF / histórico
 dados_pdf = {
+    "projetos": projetos_detalhe,
     "cliente": {
         "razao_social": razao_social or "—",
         "cnpj": cnpj or "—",

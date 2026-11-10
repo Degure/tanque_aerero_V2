@@ -445,7 +445,9 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
     story.append(Spacer(1, 4*mm))
 
     # ========== IMAGENS RESPONSIVAS DOS PRODUTOS ==========
-    if modo != "condicoes":
+    # Imagens gerais só quando NÃO há lista de projetos (legado).
+    # Com vários projetos, cada um leva suas fotos na seção própria.
+    if modo != "condicoes" and not dados.get("projetos"):
         from data import get_imagens_selecionadas
 
         imagens = dados.get("imagens")
@@ -457,48 +459,97 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
                 dados.get("filtro_key", "SEM FILTRO"),
             )
 
-        # Grade adapta automaticamente: 1, 2, 3 ou 4 colunas
         for flowable in _grade_imagens(imagens, styles):
             story.append(flowable)
 
-    # ========== ITENS / VALORES (exceto modo condições) ==========
+    # ========== PROJETOS / ITENS / VALORES (exceto modo condições) ==========
     if modo != "condicoes":
-        story.append(Paragraph("DESCRIÇÃO DOS PRODUTOS", styles["Subtitulo"]))
+        projetos = dados.get("projetos") or []
+        # Compat: proposta antiga sem lista de projetos
+        if not projetos:
+            projetos = [{
+                "nome": "Projeto",
+                "itens": dados.get("itens") or [],
+                "imagens": dados.get("imagens") or [],
+                "subtotal": dados.get("total_produtos") or 0,
+                "condicoes_especificas": "",
+            }]
 
-        itens = dados.get("itens", [])
-        header_itens = [
-            Paragraph("<b>Descrição</b>", styles["CorpoPequeno"]),
-            Paragraph("<b>Qtd</b>", styles["CorpoPequeno"]),
-            Paragraph("<b>Valor Unit.</b>", styles["CorpoPequeno"]),
-            Paragraph("<b>Valor Final</b>", styles["CorpoPequeno"]),
-        ]
-        rows = [header_itens]
-        for item in itens:
-            rows.append([
-                Paragraph(item.get("descricao", ""), styles["CorpoPequeno"]),
-                Paragraph(str(item.get("qtd", 1)), styles["CorpoPequeno"]),
-                Paragraph(format_brl(item.get("unitario", 0)), styles["CorpoPequeno"]),
-                Paragraph(format_brl(item.get("total", 0)), styles["CorpoPequeno"]),
-            ])
+        multi = len(projetos) > 1
+        if multi:
+            story.append(Paragraph(
+                f"DESCRIÇÃO DOS PRODUTOS — {len(projetos)} projetos nesta proposta",
+                styles["Subtitulo"],
+            ))
+        else:
+            story.append(Paragraph("DESCRIÇÃO DOS PRODUTOS", styles["Subtitulo"]))
 
-        t_itens = Table(rows, colWidths=[105*mm, 15*mm, 30*mm, 30*mm])
-        t_itens.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), AZUL_ESCURO),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("BACKGROUND", (0, 1), (-1, -1), colors.white),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, CINZA_CLARO]),
-            ("BOX", (0, 0), (-1, -1), 0.7, AZUL_ESCURO),
-            ("INNERGRID", (0, 0), (-1, -1), 0.3, CINZA_BORDA),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("ALIGN", (1, 0), (-1, -1), "CENTER"),
-            ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 4),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]))
-        story.append(t_itens)
-        story.append(Spacer(1, 3*mm))
+        # Imagens gerais (legado) só se um único projeto e ainda não desenhamos por projeto
+        if not multi and modo != "condicoes":
+            pass  # imagens já foram (ou serão) tratadas abaixo por projeto
+
+        for pi, proj in enumerate(projetos):
+            nome_p = proj.get("nome") or f"Projeto {pi+1}"
+            if multi:
+                story.append(Spacer(1, 2*mm))
+                story.append(Paragraph(f"<b>{nome_p}</b>", styles["Subtitulo"]))
+                story.append(HRFlowable(width="100%", thickness=0.8, color=LARANJA, spaceBefore=1, spaceAfter=3))
+
+            # Fotos deste projeto
+            imgs_p = proj.get("imagens") or []
+            if imgs_p:
+                for flowable in _grade_imagens(imgs_p, styles):
+                    story.append(flowable)
+
+            itens_p = proj.get("itens") or []
+            header_itens = [
+                Paragraph("<b>Descrição</b>", styles["CorpoPequeno"]),
+                Paragraph("<b>Qtd</b>", styles["CorpoPequeno"]),
+                Paragraph("<b>Valor Unit.</b>", styles["CorpoPequeno"]),
+                Paragraph("<b>Valor Final</b>", styles["CorpoPequeno"]),
+            ]
+            rows = [header_itens]
+            for item in itens_p:
+                rows.append([
+                    Paragraph(item.get("descricao", ""), styles["CorpoPequeno"]),
+                    Paragraph(str(item.get("qtd", 1)), styles["CorpoPequeno"]),
+                    Paragraph(format_brl(item.get("unitario", 0)), styles["CorpoPequeno"]),
+                    Paragraph(format_brl(item.get("total", 0)), styles["CorpoPequeno"]),
+                ])
+            if multi and proj.get("subtotal"):
+                rows.append([
+                    Paragraph(f"<b>Subtotal {nome_p}</b>", styles["CorpoPequeno"]),
+                    Paragraph("", styles["CorpoPequeno"]),
+                    Paragraph("", styles["CorpoPequeno"]),
+                    Paragraph(f"<b>{format_brl(proj.get('subtotal', 0))}</b>", styles["CorpoPequeno"]),
+                ])
+
+            t_itens = Table(rows, colWidths=[105*mm, 15*mm, 30*mm, 30*mm])
+            t_itens.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), AZUL_ESCURO),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.white),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, CINZA_CLARO]),
+                ("BOX", (0, 0), (-1, -1), 0.7, AZUL_ESCURO),
+                ("INNERGRID", (0, 0), (-1, -1), 0.3, CINZA_BORDA),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("ALIGN", (1, 0), (-1, -1), "CENTER"),
+                ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            story.append(t_itens)
+            story.append(Spacer(1, 2*mm))
+
+            cond_p = (proj.get("condicoes_especificas") or "").strip()
+            if cond_p:
+                story.append(Paragraph(f"<b>Condições específicas — {nome_p}:</b>", styles["CorpoPequeno"]))
+                story.append(Paragraph(cond_p.replace("\n", "<br/>"), styles["CorpoPequeno"]))
+                story.append(Spacer(1, 2*mm))
+
+        story.append(Spacer(1, 2*mm))
 
         # Totais
         total_produtos = dados.get("total_produtos", 0)
