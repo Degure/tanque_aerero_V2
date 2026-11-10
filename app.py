@@ -597,11 +597,12 @@ obs_item = st.text_input(
 st.markdown("**Simulação de economia — abastecimento via TRR**")
 st.caption(
     "Demonstra ao cliente a economia de comprar diesel em TRR (com tanque próprio) "
-    "em vez de abastecer no posto. Valores editáveis; a tabela usa o volume do tanque selecionado."
+    "em vez de abastecer no posto. Com vários projetos, a economia é mostrada "
+    "**por projeto** e **geral (soma de todos)**."
 )
 incluir_economia = st.checkbox("Incluir simulação de economia na proposta", value=True)
 
-# Volume do tanque selecionado (ex.: "10.000L" → 10000)
+# Volume do tanque (ex.: "10.000L" → 10000)
 def _volume_litros(chave: str) -> int:
     digitos = "".join(c for c in (chave or "") if c.isdigit())
     try:
@@ -609,7 +610,23 @@ def _volume_litros(chave: str) -> int:
     except Exception:
         return 5000
 
-vol_tanque = _volume_litros(tanque_key)
+# Capacidade total = soma (volume do tanque × quantidade) de todos os projetos
+economia_por_projeto = []
+vol_total_projetos = 0
+for p in st.session_state.get("projetos") or []:
+    vol_unit = _volume_litros(p.get("tanque_key", ""))
+    qtd = max(1, int(p.get("qtd_tanque") or 1))
+    vol_p = vol_unit * qtd
+    vol_total_projetos += vol_p
+    economia_por_projeto.append({
+        "nome": p.get("nome") or "Projeto",
+        "tanque_key": p.get("tanque_key"),
+        "qtd": qtd,
+        "volume_unitario": vol_unit,
+        "volume": vol_p,
+    })
+
+vol_tanque = vol_total_projetos if vol_total_projetos > 0 else _volume_litros(tanque_key)
 
 col_e1, col_e2, col_e3, col_e4 = st.columns(4)
 with col_e1:
@@ -626,9 +643,9 @@ with col_e2:
     )
 with col_e3:
     volume_simulado = st.number_input(
-        "Volume p/ tabela (L)",
+        "Volume total p/ tabela (L)",
         min_value=100, value=int(vol_tanque), step=500,
-        help="Por padrão usa a capacidade do tanque selecionado.",
+        help="Padrão = soma da capacidade de todos os tanques (× quantidade) dos projetos.",
         disabled=not incluir_economia,
     )
 with col_e4:
@@ -636,7 +653,7 @@ with col_e4:
     consumo_mensal = st.number_input(
         "Consumo mensal da frota (L)",
         min_value=100, value=min(int(vol_tanque), 5000), step=100,
-        help="Litros abastecidos por mês — base do gráfico de economia mensal.",
+        help="Litros abastecidos por mês — base do gráfico de economia mensal (geral).",
         disabled=not incluir_economia,
     )
 
@@ -646,17 +663,33 @@ economia_total = economia_litro * float(volume_simulado)
 economia_mensal = economia_litro * float(consumo_mensal)
 economia_anual = economia_mensal * 12
 
+# Completa economia por projeto (R$ por enchimento do tanque daquele projeto)
+for ep in economia_por_projeto:
+    ep["economia_enchimento"] = economia_litro * float(ep["volume"])
+    # Rateio proporcional do consumo mensal pelo volume de cada projeto
+    if vol_total_projetos > 0:
+        ep["consumo_mensal_rateado"] = float(consumo_mensal) * (ep["volume"] / vol_total_projetos)
+    else:
+        ep["consumo_mensal_rateado"] = float(consumo_mensal)
+    ep["economia_mensal"] = economia_litro * ep["consumo_mensal_rateado"]
+    ep["economia_anual"] = ep["economia_mensal"] * 12
+
 # Tabela de referência por volume
 _vols_ref = [1000, 2000, 3000, 4000, 5000]
+# Inclui volumes de cada projeto e o total
+for ep in economia_por_projeto:
+    if ep["volume"] not in _vols_ref:
+        _vols_ref.append(int(ep["volume"]))
 if volume_simulado not in _vols_ref and volume_simulado > 0:
-    _vols_ref = sorted(set(_vols_ref + [int(volume_simulado)]))
+    _vols_ref.append(int(volume_simulado))
+_vols_ref = sorted(set(_vols_ref))
 tabela_economia = [
     {"volume": v, "economia": economia_litro * v}
     for v in _vols_ref
-    if v <= max(int(volume_simulado), 5000) or v == int(volume_simulado)
+    if v <= max(int(volume_simulado), 5000) or v == int(volume_simulado) or any(v == ep["volume"] for ep in economia_por_projeto)
 ]
 
-# Série mensal acumulada (12 meses) para o gráfico
+# Série mensal acumulada (12 meses) para o gráfico — geral
 serie_mensal = []
 acum = 0.0
 for m in range(1, 13):
@@ -667,8 +700,28 @@ if incluir_economia:
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Economia / litro", format_brl(economia_litro))
     m2.metric("Economia %", f"{economia_pct:.2f}%")
-    m3.metric("Economia mensal", format_brl(economia_mensal))
-    m4.metric("Economia em 12 meses", format_brl(economia_anual))
+    m3.metric("Economia mensal (geral)", format_brl(economia_mensal))
+    m4.metric("Economia em 12 meses (geral)", format_brl(economia_anual))
+
+    # Detalhamento por projeto
+    if len(economia_por_projeto) >= 1:
+        st.markdown("**Economia por projeto**")
+        for ep in economia_por_projeto:
+            c1, c2, c3, c4 = st.columns(4)
+            c1.markdown(f"**{ep['nome']}**")
+            c2.metric(
+                "Capacidade",
+                f"{ep['volume']:,} L".replace(",", ".") + (f" ({ep['qtd']}×{ep['volume_unitario']:,} L)".replace(",", ".") if ep["qtd"] > 1 else ""),
+            )
+            c3.metric("Por enchimento", format_brl(ep["economia_enchimento"]))
+            c4.metric("Mensal rateado", format_brl(ep["economia_mensal"]))
+        if len(economia_por_projeto) > 1:
+            st.success(
+                f"**Economia geral (todos os projetos):** "
+                f"{format_brl(economia_total)} no volume total de "
+                f"{int(volume_simulado):,} L".replace(",", ".")
+                + f" · mensal {format_brl(economia_mensal)} · anual {format_brl(economia_anual)}"
+            )
 
     # Gráfico visual na tela
     try:
@@ -721,6 +774,8 @@ economia_dados = {
     "serie_mensal": serie_mensal,
     "tabela": tabela_economia,
     "fluido_ref": fluido or "Diesel",
+    "por_projeto": economia_por_projeto,
+    "volume_total_projetos": int(vol_total_projetos),
 } if incluir_economia else {"incluir": False}
 
 # ==================== FORMA DE PAGAMENTO ====================

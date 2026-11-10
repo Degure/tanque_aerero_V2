@@ -742,6 +742,61 @@ def gerar_pdf(dados: Dict[str, Any], modo: str = "completa") -> bytes:
                 styles["Corpo"],
             ))
 
+            # Economia por projeto (quando há mais de um)
+            por_proj = eco.get("por_projeto") or []
+            if len(por_proj) > 1:
+                story.append(Spacer(1, 2*mm))
+                story.append(Paragraph("<b>Economia por projeto</b>", styles["CorpoPequeno"]))
+                rows_pp = [[
+                    Paragraph("<b>Projeto</b>", styles["CorpoPequeno"]),
+                    Paragraph("<b>Capacidade</b>", styles["CorpoPequeno"]),
+                    Paragraph("<b>Por enchimento</b>", styles["CorpoPequeno"]),
+                    Paragraph("<b>Mensal*</b>", styles["CorpoPequeno"]),
+                    Paragraph("<b>Anual*</b>", styles["CorpoPequeno"]),
+                ]]
+                for ep in por_proj:
+                    vol_p = int(ep.get("volume") or 0)
+                    qtd = int(ep.get("qtd") or 1)
+                    cap_lbl = f"{vol_p:,} L".replace(",", ".")
+                    if qtd > 1:
+                        cap_lbl += f" ({qtd}×)"
+                    rows_pp.append([
+                        Paragraph(str(ep.get("nome") or "Projeto"), styles["CorpoPequeno"]),
+                        Paragraph(cap_lbl, styles["CorpoPequeno"]),
+                        Paragraph(format_brl(ep.get("economia_enchimento") or 0), styles["CorpoPequeno"]),
+                        Paragraph(format_brl(ep.get("economia_mensal") or 0), styles["CorpoPequeno"]),
+                        Paragraph(format_brl(ep.get("economia_anual") or 0), styles["CorpoPequeno"]),
+                    ])
+                # Linha total
+                rows_pp.append([
+                    Paragraph("<b>Total geral</b>", styles["CorpoPequeno"]),
+                    Paragraph(f"<b>{vol:,} L</b>".replace(",", "."), styles["CorpoPequeno"]),
+                    Paragraph(f"<b>{format_brl(et)}</b>", styles["Desconto"]),
+                    Paragraph(f"<b>{format_brl(float(eco.get('economia_mensal') or 0))}</b>", styles["Desconto"]),
+                    Paragraph(f"<b>{format_brl(float(eco.get('economia_anual') or 0))}</b>", styles["Desconto"]),
+                ])
+                t_pp = Table(rows_pp, colWidths=[40*mm, 32*mm, 34*mm, 32*mm, 32*mm])
+                t_pp.setStyle(TableStyle([
+                    ("BACKGROUND", (0, 0), (-1, 0), AZUL_ESCURO),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("BOX", (0, 0), (-1, -1), 0.7, AZUL_ESCURO),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.3, CINZA_BORDA),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, CINZA_CLARO]),
+                    ("BACKGROUND", (0, -1), (-1, -1), CINZA_CLARO),
+                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                    ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ]))
+                story.append(t_pp)
+                story.append(Paragraph(
+                    "* Mensal/anual rateados pelo volume de cada projeto sobre o consumo mensal informado da frota.",
+                    styles["CorpoPequeno"],
+                ))
+                story.append(Spacer(1, 2*mm))
+
             # Economia mensal / anual
             cons_m = int(eco.get("consumo_mensal") or 0)
             eco_m = float(eco.get("economia_mensal") or 0)
